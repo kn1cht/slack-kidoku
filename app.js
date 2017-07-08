@@ -30,7 +30,7 @@ controller.on('slash_command', async(bot, msg) => {
       await kidokuButton(msg.text, msg.user_id, { callback_id : 'preview' }), // set dummy id
       kidokuConfirm(msg.text)
     ];
-    bot.replyPrivate(msg, { text : 'Preview:', attachments : attachments, link_names : true});
+    bot.replyPrivate(msg, { text : 'Preview:', attachments : attachments});
   }
 });
 
@@ -38,12 +38,18 @@ controller.on('interactive_message_callback', async(bot, msg) => {
   console.log(msg);
   if (msg.callback_id === 'slack-kidoku-confirm') {
     if (msg.actions[0].name === 'ok') {
-      bot.replyInteractive(msg, { text : 'Success!' }); // TODO: Couldn't complete request, since bot is not part of this channel!
       const key = await saveKidukuButtondata(msg.channel);
       const attachments = [
         await kidokuButton(msg.text, msg.user, { value : key }),
       ];
-      botUser.api.chat.postMessage({ channel : msg.channel, attachments : attachments });
+      botUser.api.chat.postMessage({ channel : msg.channel, attachments : attachments, link_names : true }, (err) => {
+        let resultText = 'Success!';
+        if(err === 'channel_not_found') {
+          resultText = 'Bot should be part of this channel or DM :persevere: \nPlease `/invite @kidoku` to use `/kidoku` command here.';
+        }
+        else if(err) { resultText = 'Sorry, something was wrong.'; }
+        bot.replyInteractive(msg, { text : resultText });
+      });
     }
     else if (msg.actions[0].name === 'cancel') {
       bot.replyInteractive(msg, { text : 'Canceled :wink:' });
@@ -63,7 +69,7 @@ controller.on('interactive_message_callback', async(bot, msg) => {
       title : `既読(${item.read_user.length})`,
       text  : item.read_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(1, ) // concatenate user mentions
     });
-    bot.replyInteractive(msg, { attachments : attachments, link_names : true });
+    bot.replyInteractive(msg, { attachments : attachments });
   }
 });
 
