@@ -4,8 +4,8 @@
   "description": "add button for teammates to declare that they have confirmed your message.",
   "main": "index.js",
   "scripts": {
-    "start": "node ./bin/www",
-    "test": "npm run lint && npm run mocha",
+    "start": "node app.js",
+    "test": "npm run lint",
     "lint": "eslint *.js",
     "mocha": "NODE_ENV=test mocha --require intelli-espower-loader",
     "istanbul": "NODE_ENV=test istanbul cover _mocha",
@@ -17,6 +17,9 @@
   },
   "author": "kn1cht",
   "license": "MIT",
+  "engines": {
+    "node": "v8.1.X"
+  },
   "dependencies": {
     "botkit": "^0.5.5",
     "config": "^1.26.1",

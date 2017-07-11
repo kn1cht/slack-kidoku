@@ -1,4 +1,4 @@
-// utd-8
+// utf-8
 'use strict';
 
 const Botkit = require('botkit');
@@ -15,7 +15,7 @@ const controller = Botkit.slackbot({
 
 const botUser = controller.spawn({ token : config.botToken || '' });
 
-controller.setupWebserver(3000, () => {
+controller.setupWebserver(process.env.PORT || 3000, () => {
   controller.createWebhookEndpoints(controller.webserver);
   controller.createOauthEndpoints(controller.webserver, (err, req, res) => {
     console.log('OAuth requested');
@@ -27,15 +27,15 @@ controller.setupWebserver(3000, () => {
 controller.on('slash_command', (bot, msg) => {
   //console.log(msg);
   if(msg.command === '/kidoku') {
+    if(msg.channel_id[0] === 'D') { // exclude request from DM
+      bot.replyPrivate(msg, { text : ':x: `/kidoku` cannot be used in Direct messages!' });
+      return;
+    }
+    else if(!msg.text) {
+      bot.replyPrivate(msg, { text : ':x: Please specify your message!' });
+      return;
+    }
     (async() => {
-      if(msg.channel_id[0] === 'D') { // exclude request from DM
-        bot.replyPrivate(msg, { text : ':x: `/kidoku` cannot be used in Direct messages!' });
-        return;
-      }
-      else if(!msg.text) {
-        bot.replyPrivate(msg, { text : ':x: Please specify your message!' });
-        return;
-      }
       const attachments = [
         await kidokuButton(msg.text, msg.user_id, { callback_id : 'preview' }), // set dummy id
         kidokuConfirm(msg.text)
@@ -47,18 +47,18 @@ controller.on('slash_command', (bot, msg) => {
 
 controller.on('interactive_message_callback', (bot, msg) => {
   //console.log(msg);
-  if (msg.callback_id === 'slack-kidoku-confirm') {
-    if (msg.actions[0].name === 'cancel') {
+  if(msg.callback_id === 'slack-kidoku-confirm') {
+    if(msg.actions[0].name === 'cancel') {
       bot.replyInteractive(msg, { text : 'Canceled :wink:' });
     }
-    else if (msg.actions[0].name === 'ok') {
+    else if(msg.actions[0].name === 'ok') {
       (async() => {
         const members = await getChannelUsers(msg.channel);
         const key = await saveKidukuButtonData(msg.channel, members);
         const attachments = [
           await kidokuButton(msg.text, msg.user, { value : key }),
         ];
-        await util.promisify(botUser.api.chat.postMessage) ({ channel : msg.channel, attachments : attachments, link_names : true });
+        const result = await util.promisify(botUser.api.chat.postMessage) ({ channel : msg.channel, attachments : attachments, link_names : true });
         bot.replyInteractive(msg, { text : 'Success!' });
       })().catch((err) => {
         console.error(err);
@@ -71,7 +71,7 @@ controller.on('interactive_message_callback', (bot, msg) => {
       });
     }
   }
-  else if (msg.callback_id === 'slack-kidoku') {
+  else if(msg.callback_id === 'slack-kidoku') {
     (async() => {
       const attachments = [ msg.original_message.attachments[0] ]; // original text and button
       const data = await util.promisify(controller.storage.channels.get)(msg.channel);
