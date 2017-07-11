@@ -8,12 +8,12 @@ const util = require('util');
 const controller = Botkit.slackbot({
   json_file_store : './bot_db/'
 }).configureSlackApp({
-  clientId     : config.clientId || '',
-  clientSecret : config.clientSecret || '',
+  clientId     : config.clientId || process.env.clientId || '',
+  clientSecret : config.clientSecret || process.env.clientSecret || '',
   scopes       : ['bot', 'commands']
 });
 
-const botUser = controller.spawn({ token : config.botToken || '' });
+const botUser = controller.spawn({ token : config.token || process.env.token || '' });
 
 controller.setupWebserver(process.env.PORT || 3000, () => {
   controller.createWebhookEndpoints(controller.webserver);
