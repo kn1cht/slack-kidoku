@@ -60,6 +60,20 @@ controller.on('interactive_message_callback', (bot, msg) => {
         ];
         const result = await util.promisify(botUser.api.chat.postMessage) ({ channel : msg.channel, attachments : attachments, link_names : true });
         bot.replyInteractive(msg, { text : 'Success!' });
+
+        const text = result.message.attachments[0].text);
+        const channelMention = text.match(/<!(.*?)>/g);
+        const userMention = text.match(/<@(.*?)>/g);
+        if(!channelMention && userMention) {
+          const data = await util.promisify(controller.storage.channels.get) (msg.channel);
+          const item = data[key];
+          let allUser = [];
+          for(const user in userMention) {
+            allUser.push(text.substr(2,8));
+          }
+          data[key].all_user = allUser;
+          controller.storage.channels.save(data);
+        }
       })().catch((err) => {
         console.error(err);
         if(err === 'channel_not_found') {
@@ -74,7 +88,7 @@ controller.on('interactive_message_callback', (bot, msg) => {
   else if(msg.callback_id === 'slack-kidoku') {
     (async() => {
       const attachments = [ msg.original_message.attachments[0] ]; // original text and button
-      const data = await util.promisify(controller.storage.channels.get)(msg.channel);
+      const data = await util.promisify(controller.storage.channels.get) (msg.channel);
       const item = data[msg.text];
       if(item.read_user.indexOf(msg.user) >= 0) { // if the user already exists in read_user, delete them
         item.read_user = item.read_user.filter((val) => (val !== msg.user));
