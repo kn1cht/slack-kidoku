@@ -26,6 +26,7 @@
     "js-yaml": "^3.8.4"
   },
   "devDependencies": {
+    "botkit-mock": "^0.1.0",
     "coveralls": "^2.13.1",
     "eslint": "^4.1.0",
     "intelli-espower-loader": "^1.0.1",
