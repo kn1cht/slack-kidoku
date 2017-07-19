@@ -21,4 +21,4 @@ controller.setupWebserver(process.env.PORT || 3000, () => {
   });
 });
 
-require('./controller')(controller);
+require('./events')(controller);
