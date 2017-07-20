@@ -21,4 +21,6 @@ controller.setupWebserver(process.env.PORT || 3000, () => {
   });
 });
 
-require('./events')(controller);
+const bot = controller.spawn({ token : config.token || process.env.token || '' });
+
+require('./events')(controller, bot);

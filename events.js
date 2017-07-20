@@ -4,11 +4,9 @@
 const config = require('config');
 const util = require('util');
 
-module.exports = (controller) => {
-  const botUser = controller.spawn({ token : config.token || process.env.token || '' });
-
+module.exports = (controller, botUser) => {
   controller.on('slash_command', (bot, msg) => {
-    console.log(msg);
+    //console.log(msg);
     if(msg.command === '/kidoku') {
       if(msg.channel_id[0] === 'D') { // exclude request from DM
         bot.replyPrivate(msg, { text : ':x: `/kidoku` cannot be used in Direct messages!' });
@@ -29,7 +27,7 @@ module.exports = (controller) => {
   });
 
   controller.on('interactive_message_callback', (bot, msg) => {
-    console.log(msg);
+    //console.log(msg);
     if(msg.callback_id === 'slack-kidoku-confirm') {
       if(msg.actions[0].name === 'cancel') {
         bot.replyInteractive(msg, { text : 'Canceled :wink:' });
