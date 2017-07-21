@@ -4,6 +4,7 @@ const assert = require('power-assert');
 const botkitMock = require('botkit-mock');
 const nock = require('nock');
 const rewire = require('rewire');
+const util = require('util');
 
 const events = require('../events.js');
 
@@ -21,6 +22,7 @@ const info = {
 const controller = botkitMock({ /*debug : false*/ });
 const bot = controller.spawn({ type : 'slack' });
 bot.api.setData('users.info', {
+  ok   : true,
   user : {
     name    : info.user_name,
     profile : {
@@ -29,6 +31,28 @@ bot.api.setData('users.info', {
     }
   }
 });
+bot.api.setData('channels.info', {
+  C12345678 : {
+    ok      : true,
+    channel : {
+      id      : info.channel,
+      name    : 'general',
+      members : [ info.user_id ]
+    }
+  }
+});
+bot.api.setData('chat.postMessage', {
+  ok : true,
+  channel : info.channel,
+  message : {
+    attachments : [{ text : ''  }]
+  }
+});
+
+(async() => { // enable botkit-mock storage
+  await util.promisify(controller.storage.channels.save) ({ id: info.channel });
+})();
+
 bot.replyPrivate = function(src, resp, cb) {
   let msg = {};
   if (typeof(resp) == 'string') {
@@ -64,6 +88,7 @@ describe('slack-kidoku', function() {
   after(() => {
     controller.shutdown();
   });
+  /*
   describe('/kidoku command', () => {
     before(() => {
       this.sequence = [{
@@ -107,17 +132,32 @@ describe('slack-kidoku', function() {
         assert(!reply.attachments);
       })
     });
-  });
+  });*/
   describe('confirm message buttons', () => {
     before(() => {
       this.sequence = [{
           type : 'interactive_message_callback',
-          text : info.text,
-          callback_id : 'slack-kidoku-confirm',
           user : info.user_id,
           channel : info.channel,
-          actions : [{ name: 'ok', type: 'button', value: info.text }]
+          messages : [{
+            isAssertion : true,
+            token : '',
+            channel_id : info.channel,
+            user_id : info.user_id,
+            text : info.text,
+            callback_id : 'slack-kidoku-confirm',
+            actions : [{ name: 'ok', type: 'button', value: info.text }],
+            response_url : 'https://hooks.slack.com/commands/foo/bar'
+          }]
       }];
+    });
+    it('return confirm message', () => {
+      return bot.usersInput(this.sequence).then(() => {
+        const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
+        assert(replyInteractive.text === 'Success!');
+        const reply = bot.api.logByKey['chat.postMessage'].slice(-1)[0].json;
+        console.log(bot.api.logByKey['chat.postMessage'].slice(-1)[0]); // TODO
+      })
     });
   });
 });

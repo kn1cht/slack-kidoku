@@ -152,7 +152,7 @@ module.exports = (controller, botUser) => {
         else { throw new Error(err); }
       }
       data[key] = { read_user : [], all_user : members }; // add new item
-      await controller.storage.channels.save(data);
+      await  util.promisify(controller.storage.channels.save) (data);
       return key;
     })().catch((err) => { console.error(err); });
   }
