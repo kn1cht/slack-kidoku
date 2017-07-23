@@ -71,12 +71,12 @@ module.exports = (controller, botUser) => {
           }
           else { item.read_user.push(msg.user); } // if not, add them
           data[msg.text] = item;
-          controller.storage.channels.save(data);
+          await util.promisify(controller.storage.channels.save) (data);
 
           const attachments = [ msg.original_message.attachments[0] ]; // original text and button
           attachments.push({
             title : `既読(${item.read_user.length})`,
-            text  : item.read_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(1, ) // concatenate user mentions
+            text  : item.read_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ) // concatenate user mentions
           });
           bot.replyInteractive(msg, { attachments : attachments });
         }
@@ -146,7 +146,7 @@ module.exports = (controller, botUser) => {
     return (async() => {
       const key = Date.now(); // to set unique value
       let data;
-      try { data = await util.promisify(controller.storage.channels.get)(channel); }
+      try { data = await util.promisify(controller.storage.channels.get)(channel) || { id : channel }; }
       catch(err) {
         if(err.message === 'could not load data') { data = { id : channel }; }
         else { throw new Error(err); }
