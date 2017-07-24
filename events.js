@@ -143,9 +143,10 @@ module.exports = (controller, botUser) => {
   function saveKidukuButtonData(channel, members) {
     return (async() => {
       const key = Date.now(); // to set unique value
-      let data = await util.promisify(controller.storage.channels.get)(channel);
-      data = data || { id : channel };
-      console.log(data);
+      let data;
+      try { data = await util.promisify(controller.storage.channels.get)(channel); }
+      catch(err) { console.error(err); }
+      data = data || { id : channel }; // if data not yet exist, create
       data[key] = { read_user : [], all_user : members }; // add new item
       await  util.promisify(controller.storage.channels.save) (data);
       return key;
