@@ -1,6 +1,6 @@
 *.swp
 *~
 node_modules
-config/default.*
+.env
 bot_db/*
 coverage/*

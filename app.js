@@ -1,14 +1,14 @@
 // utf-8
 'use strict';
 
+require('dotenv').config();
 const Botkit = require('botkit');
-const config = require('config');
 
 const controller = Botkit.slackbot({
   json_file_store : './bot_db/'
 }).configureSlackApp({
-  clientId     : config.clientId || process.env.clientId || '',
-  clientSecret : config.clientSecret || process.env.clientSecret || '',
+  clientId     : process.env.clientId || '',
+  clientSecret : process.env.clientSecret || '',
   scopes       : ['bot', 'commands']
 });
 
@@ -21,6 +21,6 @@ controller.setupWebserver(process.env.PORT || 3000, () => {
   });
 });
 
-const bot = controller.spawn({ token : config.token || process.env.token || '' });
+const bot = controller.spawn({ token : process.env.token || '' });
 
 require('./events')(controller, bot);

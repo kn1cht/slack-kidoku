@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node app.js",
-    "test": "npm run lint",
+    "test": "npm run lint && npm run mocha",
     "lint": "eslint *.js",
     "mocha": "NODE_ENV=test mocha --require intelli-espower-loader",
     "istanbul": "NODE_ENV=test istanbul cover _mocha",
@@ -22,18 +22,15 @@
   },
   "dependencies": {
     "botkit": "^0.5.5",
-    "config": "^1.26.1",
-    "js-yaml": "^3.8.4"
+    "dotenv": "^4.0.0"
   },
   "devDependencies": {
     "botkit-mock": "github:kn1cht/botkit-mock",
     "coveralls": "^2.13.1",
-    "eslint": "^4.1.0",
+    "eslint": "^4.3.0",
     "intelli-espower-loader": "^1.0.1",
     "istanbul": "^1.1.0-alpha.1",
     "mocha": "^3.4.2",
-    "nock": "^9.0.13",
-    "power-assert": "^1.4.4",
-    "rewire": "^2.5.2"
+    "power-assert": "^1.4.4"
   }
 }

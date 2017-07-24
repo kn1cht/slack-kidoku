@@ -1,7 +1,5 @@
 // utf-8
 'use strict';
-
-const config = require('config');
 const util = require('util');
 
 module.exports = (controller, botUser) => {
@@ -81,9 +79,9 @@ module.exports = (controller, botUser) => {
           bot.replyInteractive(msg, { attachments : attachments });
         }
         else if(msg.actions[0].name === 'show-unread') {
-          const unread_user = item.all_user.filter((user) => !item.read_user.includes(user));
-          const text = unread_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(1, ); // concatenate user mentions
-          bot.replyInteractive(msg, { text : text || 'Everyone has read this message!' , response_type : 'ephemeral' , replace_original : false });
+          const unreadUser = item.all_user.filter((user) => !item.read_user.includes(user));
+          const text = unreadUser.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ); // concatenate user mentions
+          bot.replyInteractive(msg, { text : text || 'Everyone has read this message!', response_type : 'ephemeral', replace_original : false });
         }
       })().catch((err) => { console.error(err); });
     }
@@ -145,15 +143,12 @@ module.exports = (controller, botUser) => {
   function saveKidukuButtonData(channel, members) {
     return (async() => {
       const key = Date.now(); // to set unique value
-      let data;
-      try { data = await util.promisify(controller.storage.channels.get)(channel) || { id : channel }; }
-      catch(err) {
-        if(err.message === 'could not load data') { data = { id : channel }; }
-        else { throw new Error(err); }
-      }
+      let data = await util.promisify(controller.storage.channels.get)(channel);
+      data = data || { id : channel };
+      console.log(data);
       data[key] = { read_user : [], all_user : members }; // add new item
       await  util.promisify(controller.storage.channels.save) (data);
       return key;
     })().catch((err) => { console.error(err); });
   }
-}
+};
