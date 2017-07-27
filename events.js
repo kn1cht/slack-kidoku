@@ -46,7 +46,7 @@ module.exports = (controller, botUser) => {
           if(!channelMention && userMention) {
             const data = await util.promisify(controller.storage.channels.get) (msg.channel);
             data[key].all_user = userMention.reduce((res, user) => [...res, user.substr(2, user.length - 3)], []); // <@U*********> -> U*********
-            controller.storage.channels.save(data);
+            await util.promisify(controller.storage.channels.save) (data);
           }
         })().catch((err) => {
           console.error(err);

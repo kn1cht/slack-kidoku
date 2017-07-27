@@ -301,5 +301,22 @@ describe('slack-kidoku', function() {
         assert(replyInteractive.text === 'Everyone has read this message!');
       });
     });
+    it('if user mentions were included in message, treat them as all user to read it', async() => {
+      bot.api.setData('chat.postMessage', {
+        ok      : true,
+        channel : info.channel,
+        message : {
+          attachments : [{ text : '<@U77777777> <@U88888888> something important' }]
+        }
+      });
+      await bot.usersInput([ new sequence.command() ]);
+      await bot.usersInput([ new sequence.confirm() ]);
+      originalMessage = bot.api.logByKey['chat.postMessage'].slice(-1)[0];
+      value = originalMessage.attachments[0].actions[0].value;
+      return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
+        const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
+        assert(replyInteractive.text === '<@U77777777>, <@U88888888>');
+      });
+    });
   });
 });
