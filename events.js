@@ -5,7 +5,6 @@ const userMessage = (process.env.lang === 'en') ? require('./locales/en.json') :
 
 module.exports = (controller, botUser) => {
   controller.on('slash_command', (bot, msg) => {
-    //console.log(msg);
     if(msg.command === '/kidoku') {
       if(msg.channel_id[0] === 'D') { // exclude request from DM
         bot.replyPrivate(msg, { text : userMessage.error.command_in_dm });
@@ -21,12 +20,14 @@ module.exports = (controller, botUser) => {
           kidokuConfirm(msg.text)
         ];
         bot.replyPrivate(msg, { text : userMessage.preview, attachments : attachments });
-      })().catch((err) => { console.error(err); });
+      })().catch((err) => {
+        console.error(err);
+        bot.replyPrivate(msg, { text : userMessage.error.default });
+      });
     }
   });
 
   controller.on('interactive_message_callback', (bot, msg) => {
-    //console.log(msg);
     if(msg.callback_id === 'slack-kidoku-confirm') {
       if(msg.actions[0].name === 'cancel') {
         bot.replyInteractive(msg, { text : userMessage.cancel });
@@ -86,7 +87,10 @@ module.exports = (controller, botUser) => {
           const text = unreadUser.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ); // concatenate user mentions
           bot.replyInteractive(msg, { text : text || userMessage.everyone_read, response_type : 'ephemeral', replace_original : false });
         }
-      })().catch((err) => { console.error(err); });
+      })().catch((err) => {
+        console.error(err);
+        bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
+      });
     }
   });
 
@@ -106,7 +110,7 @@ module.exports = (controller, botUser) => {
           { name : 'show-unread', text : userMessage.label.show_unread, type : 'button', value : option.value || '' }
         ]
       };
-    })().catch((err) => { console.error(err); });
+    })().catch((err) => { throw new Error(err); });
   };
 
   const kidokuConfirm = (text) => {
@@ -140,7 +144,7 @@ module.exports = (controller, botUser) => {
         if(member.is_bot && ~index) { members.splice(index, index); }
       }
       return members;
-    })().catch((err) => { console.error(err); });
+    })().catch((err) => { throw new Error(err); });
   }
 
   function saveKidukuButtonData(channel, members) {
@@ -151,8 +155,8 @@ module.exports = (controller, botUser) => {
       catch(err) { console.error(err); }
       data = data || { id : channel }; // if data not yet exist, create
       data[key] = { read_user : [], all_user : members }; // add new item
-      await  util.promisify(controller.storage.channels.save) (data);
+      await util.promisify(controller.storage.channels.save) (data);
       return key;
-    })().catch((err) => { console.error(err); });
+    })().catch((err) => { throw new Error(err); });
   }
 };

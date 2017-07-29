@@ -163,7 +163,7 @@ bot.replyPrivate = function(src, resp, cb) {
   };
   bot.api.callAPI('replyPrivate', requestOptions, (err) => {
     if (err) {
-      console.log.error('Error sending interactive message response:', err);
+      console.error('Error sending interactive message response:', err);
       cb && cb(err);
     } else {
       cb && cb();
@@ -316,6 +316,29 @@ describe('slack-kidoku', function() {
       return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
         assert(replyInteractive.text === '<@U77777777>, <@U88888888>');
+      });
+    });
+  });
+  describe('API error case:', () => {
+    beforeEach(() => botInit);
+    it('send default message (with users.info error)', async() => {
+      bot.api.setData('users.info', {
+        ok    : false,
+        error : 'request_timeout'
+      });
+      return bot.usersInput([ new sequence.command() ]).then(() => {
+        const reply = bot.api.logByKey['replyPrivate'].slice(-1)[0].json;
+        assert(reply.text === userMessage.error.default);
+      });
+    });
+    it('send default message (with channels.info error)', async() => {
+      bot.api.setData('channels.info', {
+        ok    : false,
+        error : 'request_timeout'
+      });
+      return bot.usersInput([ new sequence.confirm() ]).then(() => {
+        const reply = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
+        assert(reply.text === userMessage.error.default);
       });
     });
   });
