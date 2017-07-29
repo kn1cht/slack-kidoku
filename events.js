@@ -100,7 +100,7 @@ module.exports = (controller, botUser) => {
       return {
         fallback        : 'Read confirmation button.',
         callback_id     : option.callback_id || 'slack-kidoku',
-        color           : 'good',
+        color           : '#4bb078',
         attachment_type : 'default',
         text            : text,
         author_name     : info.user.name,
