@@ -1,7 +1,7 @@
 'use strict';
 
 require('dotenv').config();
-  const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') : require('../locales/ja.json');
+const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') : require('../locales/ja.json');
 
 const assert = require('power-assert');
 const botkitMock = require('botkit-mock');
@@ -321,7 +321,7 @@ describe('slack-kidoku', function() {
   });
   describe('API error case:', () => {
     beforeEach(() => botInit);
-    it('send default message (with users.info error)', async() => {
+    it('send default error message (with users.info error)', async() => {
       bot.api.setData('users.info', {
         ok    : false,
         error : 'request_timeout'
@@ -331,8 +331,8 @@ describe('slack-kidoku', function() {
         assert(reply.text === userMessage.error.default);
       });
     });
-    it('send default message (with channels.info error)', async() => {
-      bot.api.setData('channels.info', {
+    it('send default error message (with users.list error)', async() => {
+      bot.api.setData('users.list', {
         ok    : false,
         error : 'request_timeout'
       });
