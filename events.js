@@ -1,17 +1,18 @@
 // utf-8
 'use strict';
 const util = require('util');
+const userMessage = (process.env.lang === 'en') ? require('./locales/en.json') : require('./locales/ja.json');
 
 module.exports = (controller, botUser) => {
   controller.on('slash_command', (bot, msg) => {
     //console.log(msg);
     if(msg.command === '/kidoku') {
       if(msg.channel_id[0] === 'D') { // exclude request from DM
-        bot.replyPrivate(msg, { text : ':x: `/kidoku` cannot be used in Direct messages!' });
+        bot.replyPrivate(msg, { text : userMessage.error.command_in_dm });
         return;
       }
       else if(!msg.text) {
-        bot.replyPrivate(msg, { text : ':x: Please specify your message!' });
+        bot.replyPrivate(msg, { text : userMessage.error.no_text });
         return;
       }
       (async() => {
@@ -19,7 +20,7 @@ module.exports = (controller, botUser) => {
           await kidokuButton(msg.text, msg.user_id, { callback_id : 'preview' }), // set dummy id
           kidokuConfirm(msg.text)
         ];
-        bot.replyPrivate(msg, { text : 'Preview:', attachments : attachments });
+        bot.replyPrivate(msg, { text : userMessage.preview, attachments : attachments });
       })().catch((err) => { console.error(err); });
     }
   });
@@ -28,17 +29,19 @@ module.exports = (controller, botUser) => {
     //console.log(msg);
     if(msg.callback_id === 'slack-kidoku-confirm') {
       if(msg.actions[0].name === 'cancel') {
-        bot.replyInteractive(msg, { text : 'Canceled :wink:' });
+        bot.replyInteractive(msg, { text : userMessage.cancel });
       }
       else if(msg.actions[0].name === 'ok') {
         (async() => {
           const members = await getChannelUsers(msg.channel);
           const key = await saveKidukuButtonData(msg.channel, members);
-          const attachments = [
-            await kidokuButton(msg.text, msg.user, { value : key }),
-          ];
-          const result = await util.promisify(botUser.api.chat.postMessage) ({ channel : msg.channel, attachments : attachments, link_names : true });
-          bot.replyInteractive(msg, { text : 'Success!' });
+          const message = {
+            channel     : msg.channel,
+            attachments : [ await kidokuButton(msg.text, msg.user, { value : key }) ],
+            link_names  : true
+          };
+          const result = await util.promisify(botUser.api.chat.postMessage) (message);
+          bot.replyInteractive(msg, { text : userMessage.success });
 
           const text = result.message.attachments[0].text;
           const channelMention = text.match(/<!(.*?)>/g);
@@ -51,10 +54,10 @@ module.exports = (controller, botUser) => {
         })().catch((err) => {
           console.error(err);
           if(err === 'channel_not_found') {
-            bot.replyInteractive(msg, { text : 'Bot should be part of this channel or DM :persevere: \nPlease `/invite @kidoku` to use `/kidoku` command here.' });
+            bot.replyInteractive(msg, { text : userMessage.error.bot_not_joined });
           }
           else {
-            bot.replyInteractive(msg, { text : 'Sorry, something went wrong.' });
+            bot.replyInteractive(msg, { text : userMessage.error.default });
           }
         });
       }
@@ -73,7 +76,7 @@ module.exports = (controller, botUser) => {
 
           const attachments = [ msg.original_message.attachments[0] ]; // original text and button
           attachments.push({
-            title : `既読(${item.read_user.length})`,
+            title : `${userMessage.kidoku}(${item.read_user.length})`,
             text  : item.read_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ) // concatenate user mentions
           });
           bot.replyInteractive(msg, { attachments : attachments });
@@ -81,13 +84,13 @@ module.exports = (controller, botUser) => {
         else if(msg.actions[0].name === 'show-unread') {
           const unreadUser = item.all_user.filter((user) => !item.read_user.includes(user));
           const text = unreadUser.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ); // concatenate user mentions
-          bot.replyInteractive(msg, { text : text || 'Everyone has read this message!', response_type : 'ephemeral', replace_original : false });
+          bot.replyInteractive(msg, { text : text || userMessage.everyone_read, response_type : 'ephemeral', replace_original : false });
         }
       })().catch((err) => { console.error(err); });
     }
   });
 
-  const kidokuButton = (text, userId, option = {}) => {
+  const kidokuButton = (text, userId, option) => {
     return (async() => {
       const info = await util.promisify(botUser.api.users.info) ({ user : userId });
       return {
@@ -99,8 +102,8 @@ module.exports = (controller, botUser) => {
         author_name     : info.user.name,
         author_icon     : info.user.profile.image_24,
         actions         : [
-          { name : 'kidoku', text : '既読', type : 'button', style : 'primary', value : option.value || '' },
-          { name : 'show-unread', text : '未読者を表示', type : 'button', value : option.value || '' }
+          { name : 'kidoku', text : userMessage.label.kidoku, type : 'button', style : 'primary', value : option.value || '' },
+          { name : 'show-unread', text : userMessage.label.show_unread, type : 'button', value : option.value || '' }
         ]
       };
     })().catch((err) => { console.error(err); });
@@ -111,10 +114,10 @@ module.exports = (controller, botUser) => {
       fallback        : 'Confirmation of read confirmation button.',
       callback_id     : 'slack-kidoku-confirm',
       attachment_type : 'default',
-      title           : '既読ボタンを作成します',
+      title           : userMessage.create_confirm,
       actions         : [
-        { name : 'ok', text : 'OK', type : 'button', value : text, style : 'primary' },
-        { name : 'cancel', text : 'Cancel', type : 'button', style : 'danger' }
+        { name : 'ok', text : userMessage.label.ok, type : 'button', value : text, style : 'primary' },
+        { name : 'cancel', text : userMessage.label.cancel, type : 'button', style : 'danger' }
       ]
     };
   };

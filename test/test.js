@@ -1,5 +1,8 @@
 'use strict';
 
+require('dotenv').config();
+  const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') : require('../locales/ja.json');
+
 const assert = require('power-assert');
 const botkitMock = require('botkit-mock');
 const util = require('util');
@@ -141,10 +144,6 @@ function botInit() {
   });
 }
 
-(async() => { // enable botkit-mock storage
-  await util.promisify(controller.storage.channels.save) ({ id : 'foo' });
-})();
-
 bot.replyPrivate = function(src, resp, cb) {
   let msg = {};
   if (typeof(resp) === 'string') {
@@ -173,7 +172,8 @@ bot.replyPrivate = function(src, resp, cb) {
 };
 
 describe('slack-kidoku', function() {
-  before(() => {
+  before(async() => {
+    await util.promisify(controller.storage.channels.save) ({ id : 'foo' });// avoid storage error
     botInit();
     events(controller, bot);
   });
@@ -192,14 +192,14 @@ describe('slack-kidoku', function() {
     it('return error text when text was empty', () => {
       return bot.usersInput([ new sequence.command({ text : '' }) ]).then(() => {
         const reply = bot.api.logByKey['replyPrivate'].slice(-1)[0].json;
-        assert(reply.text === ':x: Please specify your message!');
+        assert(reply.text === userMessage.error.no_text);
         assert(!reply.attachments);
       });
     });
     it('return error text when command used in direct messages', () => {
       return bot.usersInput([ new sequence.command({ channel : info.im  }) ]).then(() => {
         const reply = bot.api.logByKey['replyPrivate'].slice(-1)[0].json;
-        assert(reply.text);
+        assert(reply.text === userMessage.error.command_in_dm);
         assert(!reply.attachments);
       });
     });
@@ -209,7 +209,7 @@ describe('slack-kidoku', function() {
     it('post kidoku button message to channel if ok button is pushed', () => {
       return bot.usersInput([ new sequence.confirm() ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
-        assert(replyInteractive.text === 'Success!');
+        assert(replyInteractive.text === userMessage.success);
         const reply = bot.api.logByKey['chat.postMessage'].slice(-1)[0];
         assert(reply.attachments[0].callback_id === 'slack-kidoku');
         assert(reply.channel === info.channel);
@@ -226,7 +226,7 @@ describe('slack-kidoku', function() {
     it('show only cancel message if cancel button is pushed', () => {
       return bot.usersInput([ new sequence.confirm({ name : 'cancel' }) ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
-        assert(replyInteractive.text === 'Canceled :wink:');
+        assert(replyInteractive.text === userMessage.cancel);
       });
     });
     it('show error message if there is error', () => {
@@ -236,7 +236,7 @@ describe('slack-kidoku', function() {
       });
       return bot.usersInput([ new sequence.confirm() ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
-        assert(replyInteractive.text === 'Sorry, something went wrong.');
+        assert(replyInteractive.text === userMessage.error.default);
       });
     });
     it('show special error message if there is channel_not_found error', () => {
@@ -246,7 +246,7 @@ describe('slack-kidoku', function() {
       });
       return bot.usersInput([ new sequence.confirm() ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
-        assert(replyInteractive.text === 'Bot should be part of this channel or DM :persevere: \nPlease `/invite @kidoku` to use `/kidoku` command here.');
+        assert(replyInteractive.text === userMessage.error.bot_not_joined);
       });
     });
   });
@@ -298,7 +298,7 @@ describe('slack-kidoku', function() {
       await bot.usersInput([ new sequence.kidoku({ original_message : originalMessage, text : value }) ]);
       return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
         const replyInteractive = bot.api.logByKey['replyInteractive'].slice(-1)[0].json;
-        assert(replyInteractive.text === 'Everyone has read this message!');
+        assert(replyInteractive.text === userMessage.everyone_read);
       });
     });
     it('if user mentions were included in message, treat them as all user to read it', async() => {
