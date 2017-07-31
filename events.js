@@ -34,8 +34,14 @@ module.exports = (controller, botUser) => {
       }
       else if(msg.actions[0].name === 'ok') {
         (async() => {
-          const members = await getChannelUsers(msg.channel);
-          const key = await saveKidukuButtonData(msg.channel, members);
+          const key = Date.now(); // to set unique value
+          let data;
+          try { data = await util.promisify(controller.storage.channels.get)(msg.channel); }
+          catch(err) { console.error(err); }
+          data = data || { id : msg.channel }; // if channel data not exist, create
+          data[key] = { read_user : [], all_user : await getChannelUsers(msg.channel) }; // add new item
+          await util.promisify(controller.storage.channels.save) (data);
+
           const message = {
             channel     : msg.channel,
             attachments : [ await kidokuButton(msg.text, msg.user, { value : key }) ],
@@ -103,6 +109,7 @@ module.exports = (controller, botUser) => {
         color           : '#4bb078',
         attachment_type : 'default',
         text            : text,
+        mrkdwn_in       : [ 'text' ],
         author_name     : info.user.name,
         author_icon     : info.user.profile.image_24,
         actions         : [
@@ -144,19 +151,6 @@ module.exports = (controller, botUser) => {
         if(member.is_bot && ~index) { members.splice(index, index); }
       }
       return members;
-    })().catch((err) => { throw new Error(err); });
-  }
-
-  function saveKidukuButtonData(channel, members) {
-    return (async() => {
-      const key = Date.now(); // to set unique value
-      let data;
-      try { data = await util.promisify(controller.storage.channels.get)(channel); }
-      catch(err) { console.error(err); }
-      data = data || { id : channel }; // if data not yet exist, create
-      data[key] = { read_user : [], all_user : members }; // add new item
-      await util.promisify(controller.storage.channels.save) (data);
-      return key;
     })().catch((err) => { throw new Error(err); });
   }
 };
