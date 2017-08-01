@@ -11,10 +11,12 @@
   "kidoku" : "既読",
   "label" : {
     "cancel" : "キャンセル",
+    "close" : "閉じる",
     "kidoku" : "既読",
     "ok" : "OK",
     "show_unread" : "未読者を表示"
   },
   "preview" : "プレビュー:",
-  "success" : "作成しました!"
+  "success" : "作成しました!",
+  "unread"  : "未読"
 }

@@ -11,10 +11,12 @@
   "kidoku" : "Read by ",
   "label" : {
     "cancel" : "Cancel",
+    "close" : "Close",
     "kidoku" : "Read",
     "ok" : "OK",
     "show_unread" : "Show Unreaders"
   },
   "preview" : "Preview:",
-  "success" : "Success!"
+  "success" : "Success!",
+  "unread"  : "Unread"
 }

@@ -6,7 +6,7 @@ const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') 
 const assert = require('power-assert');
 const botkitMock = require('botkit-mock');
 const util = require('util');
-Array.prototype.last = function() { return this.slice(-1)[0]; } // get the last element
+Array.prototype.last = function() { return this.slice(-1)[0]; }; // get the last element
 
 const events = require('../events.js');
 const controller = botkitMock({ debug : false, log : false });
@@ -38,56 +38,25 @@ const sequence = {
       command      : '/kidoku',
       text         : (opt.text !== void 0) ? opt.text : info.text,
       response_url : 'https://hooks.slack.com/commands/foo/bar'
-    }]
+    }];
   },
-  confirm : function(opt = {}) {
-    this.type     = 'interactive_message_callback',
-    this.user     = info.user_id,
-    this.channel  = opt.channel || info.channel,
-    this.messages = [{
-      isAssertion  : true,
-      token        : '',
-      channel      : opt.channel || info.channel,
-      user_id      : info.user_id,
-      text         : opt.key,
-      callback_id  : 'slack-kidoku-confirm',
-      actions      : [{ name : opt.name || 'ok', type : 'button', value : opt.key }],
-      response_url : 'https://hooks.slack.com/commands/foo/bar'
-    }]
-  },
-  kidoku : function(opt = {}) {
+  button : function(id, name, opt = {}) {
     this.type     = 'interactive_message_callback',
     this.user     = opt.user || info.user_id,
-    this.channel  = info.channel,
+    this.channel  = opt.channel || info.channel,
     this.messages = [{
       isAssertion      : true,
       token            : '',
-      channel          : info.channel,
+      channel          : opt.channel || info.channel,
       user             : opt.user || info.user_id,
       text             : opt.text || '',
-      callback_id      : 'slack-kidoku',
-      actions          : [{ name : 'kidoku', type : 'button', value : opt.text || '' }],
+      callback_id      : id,
+      actions          : [{ name, type : 'button', value : opt.text || '' }],
       original_message : opt.original_message || {},
       response_url     : 'https://hooks.slack.com/commands/foo/bar'
-    }]
-  },
-  unread : function(opt = {}) {
-    this.type     = 'interactive_message_callback',
-    this.user     = info.user_id,
-    this.channel  = info.channel,
-    this.messages = [{
-      isAssertion      : true,
-      token            : '',
-      channel          : info.channel,
-      user             : info.user_id,
-      text             : opt.text || '',
-      callback_id      : 'slack-kidoku',
-      actions          : [{ name : 'show-unread', type : 'button', value : opt.text || '' }],
-      original_message : opt.original_message || {},
-      response_url     : 'https://hooks.slack.com/commands/foo/bar'
-    }]
+    }];
   }
-}
+};
 
 function botInit() {
   bot.api.setData('users.info', {
@@ -116,8 +85,8 @@ function botInit() {
     }
   });
   bot.api.setData('groups.info', {
-    ok      : true,
-    group   : {
+    ok    : true,
+    group : {
       id      : info.group,
       name    : 'group',
       members : [ info.user_id, info.user_id_2, info.botuser_id ]
@@ -169,63 +138,57 @@ describe('slack-kidoku', function() {
   describe('/kidoku command', () => {
     beforeEach(() => botInit());
 
-    it('return confirm message', () => {
-      return bot.usersInput([ new sequence.command() ]).then(() => {
-        const reply = bot.api.logByKey['replyPrivate'].last().json;
-        assert(reply.attachments[0].callback_id === 'preview');
-        assert(reply.attachments[1].callback_id === 'slack-kidoku-confirm');
-      });
+    it('return confirm message', async() => {
+      await bot.usersInput([ new sequence.command() ]);
+      const reply = bot.api.logByKey['replyPrivate'].last().json;
+      assert(reply.attachments[0].callback_id === 'preview');
+      assert(reply.attachments[1].callback_id === 'slack-kidoku-confirm');
     });
 
-    it('return error text when text was empty', () => {
-      return bot.usersInput([ new sequence.command({ text : '' }) ]).then(() => {
-        const reply = bot.api.logByKey['replyPrivate'].last().json;
-        assert(reply.text === userMessage.error.no_text);
-        assert(!reply.attachments);
-      });
+    it('return error text when text was empty', async() => {
+      await bot.usersInput([ new sequence.command({ text : '' }) ]);
+      const reply = bot.api.logByKey['replyPrivate'].last().json;
+      assert(reply.text === userMessage.error.no_text);
+      assert(!reply.attachments);
     });
 
-    it('return error text when command used in direct messages', () => {
-      return bot.usersInput([ new sequence.command({ channel : info.im  }) ]).then(() => {
-        const reply = bot.api.logByKey['replyPrivate'].last().json;
-        assert(reply.text === userMessage.error.command_in_dm);
-        assert(!reply.attachments);
-      });
+    it('return error text when command used in direct messages', async() => {
+      await bot.usersInput([ new sequence.command({ channel : info.im }) ]);
+      const reply = bot.api.logByKey['replyPrivate'].last().json;
+      assert(reply.text === userMessage.error.command_in_dm);
+      assert(!reply.attachments);
     });
   });
 
   describe('confirm message buttons', () => {
     beforeEach(() => botInit());
 
-    it('post kidoku button message to channel if ok button is pushed', () => {
+    it('post kidoku button message to channel if ok button is pushed', async() => {
       const key = bot.api.logByKey['replyPrivate'][0].json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === userMessage.success);
-        const reply = bot.api.logByKey['chat.postMessage'].last();
-        assert(reply.attachments[0].callback_id === 'slack-kidoku');
-        assert(reply.channel === info.channel);
-        assert(reply.attachments[0].author_name === info.user_name);
-        assert(reply.attachments[0].text === info.text);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.delete_original === true, 'original message should be deleted');
+      const reply = bot.api.logByKey['chat.postMessage'].last();
+      assert(reply.attachments[0].callback_id === 'slack-kidoku');
+      assert(reply.channel === info.channel);
+      assert(reply.attachments[0].author_name === info.user_name);
+      assert(reply.attachments[0].text === info.text);
     });
 
     it('post kidoku button message to private group if ok button is pushed', async() => {
       await bot.usersInput([ new sequence.command({ channel : info.group }) ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key, channel : info.group }) ]).then(() => {
-        const reply = bot.api.logByKey['chat.postMessage'].last();
-        assert(reply.channel === info.group);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key, channel : info.group }) ]);
+      const reply = bot.api.logByKey['chat.postMessage'].last();
+      assert(reply.channel === info.group);
     });
 
     it('show only cancel message if cancel button is pushed', async() => {
       await bot.usersInput([ new sequence.command() ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key, name : 'cancel' }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === userMessage.cancel);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'cancel', { text : key }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === userMessage.cancel);
     });
 
     it('show error message if there is error', async() => {
@@ -235,10 +198,9 @@ describe('slack-kidoku', function() {
       });
       await bot.usersInput([ new sequence.command() ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === userMessage.error.default);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === userMessage.error.default);
     });
 
     it('show special error message if there is channel_not_found error', async() => {
@@ -248,10 +210,9 @@ describe('slack-kidoku', function() {
       });
       await bot.usersInput([ new sequence.command() ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === userMessage.error.bot_not_joined);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === userMessage.error.bot_not_joined);
     });
   });
 
@@ -265,31 +226,29 @@ describe('slack-kidoku', function() {
 
     beforeEach(() => botInit());
 
-    it('add name of who pushed kidoku button to original message', () => {
-      return bot.usersInput([ new sequence.kidoku({ original_message : originalMessage, text : value }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-        assert(replyInteractive.attachments[1].text === `<@${info.user_id}>`);
-      });
+    it('add name of who pushed kidoku button to original message', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
+      assert(replyInteractive.attachments[1].text === `<@${info.user_id}>`);
     });
 
-    it('concatenate username by comma if several users pushed button', () => {
-      return bot.usersInput([ new sequence.kidoku({ original_message : originalMessage, text : value, user : info.user_id_2 }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-        assert(replyInteractive.attachments[1].text === `<@${info.user_id}>, <@${info.user_id_2}>`);
-      });
+    it('concatenate username by comma if several users pushed button', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value, user : info.user_id_2 }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
+      assert(replyInteractive.attachments[1].text === `<@${info.user_id}>, <@${info.user_id_2}>`);
     });
 
-    it('delete username if it already exist in members who have pushed button', () => {
-      return bot.usersInput([ new sequence.kidoku({ original_message : originalMessage, text : value }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-        assert(replyInteractive.attachments[1].text === `<@${info.user_id_2}>`);
-      });
+    it('delete username if it already exist in members who have pushed button', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
+      assert(replyInteractive.attachments[1].text === `<@${info.user_id_2}>`);
     });
   });
-  describe('show unread button', () => {
+
+  describe('show-unread button', () => {
     let originalMessage, value;
 
     before(() => {
@@ -299,19 +258,17 @@ describe('slack-kidoku', function() {
 
     beforeEach(() => botInit());
 
-    it('show username of the members in the channel who have not pushed kidoku button yet', () => {
-      return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === `<@${info.user_id}>`);
-      });
+    it('show username of the members in the channel who have not pushed kidoku button yet', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === `<@${info.user_id}>`);
     });
 
     it('show special message if all channel members have read message', async() => {
-      await bot.usersInput([ new sequence.kidoku({ original_message : originalMessage, text : value }) ]);
-      return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === userMessage.everyone_read);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === userMessage.everyone_read);
     });
 
     it('if user mentions were included in message, treat them as all users who have to read it', async() => {
@@ -324,13 +281,22 @@ describe('slack-kidoku', function() {
       });
       await bot.usersInput([ new sequence.command() ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      await bot.usersInput([ new sequence.confirm({ key }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
       originalMessage = bot.api.logByKey['chat.postMessage'].last();
       value = originalMessage.attachments[0].actions[0].value;
-      return bot.usersInput([ new sequence.unread({ original_message : originalMessage, text : value }) ]).then(() => {
-        const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-        assert(replyInteractive.text === '<@U77777777>, <@U88888888>');
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.text === '<@U77777777>, <@U88888888>');
+    });
+  });
+
+  describe('close button', () => {
+    beforeEach(() => botInit());
+
+    it('deletes original message', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku-unreader', 'close') ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      assert(replyInteractive.delete_original === true, 'original message should be deleted');
     });
   });
 
@@ -342,10 +308,9 @@ describe('slack-kidoku', function() {
         ok    : false,
         error : 'request_timeout'
       });
-      return bot.usersInput([ new sequence.command() ]).then(() => {
-        const reply = bot.api.logByKey['replyPrivate'].last().json;
-        assert(reply.text === userMessage.error.default);
-      });
+      await bot.usersInput([ new sequence.command() ]);
+      const reply = bot.api.logByKey['replyPrivate'].last().json;
+      assert(reply.text === userMessage.error.default);
     });
 
     it('send default error message (with users.list error)', async() => {
@@ -355,10 +320,9 @@ describe('slack-kidoku', function() {
       });
       await bot.usersInput([ new sequence.command() ]);
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
-      return bot.usersInput([ new sequence.confirm({ key }) ]).then(() => {
-        const reply = bot.api.logByKey['replyInteractive'].last().json;
-        assert(reply.text === userMessage.error.default);
-      });
+      await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
+      const reply = bot.api.logByKey['replyInteractive'].last().json;
+      assert(reply.text === userMessage.error.default);
     });
   });
 });
