@@ -1,7 +1,10 @@
 language: node_js
 node_js:
   - node
+install:
+  - "npm install -g codeclimate-test-reporter"
 script:
   - "npm test"
 after_success:
   - "npm run coveralls"
+  - "npm run codeclimate"

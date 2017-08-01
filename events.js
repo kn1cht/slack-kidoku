@@ -15,13 +15,18 @@ module.exports = (controller, botUser) => {
         return;
       }
       (async() => {
+        const key = Date.now(); // to set unique value
+        const data = await getChannelDataFromStorage(msg.channel);
+        data[key] = { text : msg.text, temporary : true }; // save message text
+        await util.promisify(controller.storage.channels.save) (data);
+
         const attachments = [
           await kidokuButton(msg.text, msg.user_id, { callback_id : 'preview' }), // set dummy id
-          kidokuConfirm(msg.text)
+          kidokuConfirm(key)
         ];
         bot.replyPrivate(msg, { text : userMessage.preview, attachments : attachments });
       })().catch((err) => {
-        console.error(err);
+        console.error(new Error(err));
         bot.replyPrivate(msg, { text : userMessage.error.default });
       });
     }
@@ -29,45 +34,45 @@ module.exports = (controller, botUser) => {
 
   controller.on('interactive_message_callback', (bot, msg) => {
     if(msg.callback_id === 'slack-kidoku-confirm') {
-      if(msg.actions[0].name === 'cancel') {
-        bot.replyInteractive(msg, { text : userMessage.cancel });
-      }
-      else if(msg.actions[0].name === 'ok') {
-        (async() => {
-          const key = Date.now(); // to set unique value
-          let data;
-          try { data = await util.promisify(controller.storage.channels.get)(msg.channel); }
-          catch(err) { console.error(err); }
-          data = data || { id : msg.channel }; // if channel data not exist, create
-          data[key] = { read_user : [], all_user : await getChannelUsers(msg.channel) }; // add new item
-          await util.promisify(controller.storage.channels.save) (data);
+      (async() => {
+        const data = await getChannelDataFromStorage(msg.channel);
 
+        if(msg.actions[0].name === 'cancel') {
+          bot.replyInteractive(msg, { text : userMessage.cancel });
+        }
+        else if(msg.actions[0].name === 'ok') {
+          const key = Date.now(); // to set unique value
           const message = {
             channel     : msg.channel,
-            attachments : [ await kidokuButton(msg.text, msg.user, { value : key }) ],
+            attachments : [ await kidokuButton(data[msg.text].text, msg.user, { value : key }) ],
             link_names  : true
           };
           const result = await util.promisify(botUser.api.chat.postMessage) (message);
           bot.replyInteractive(msg, { text : userMessage.success });
-
           const text = result.message.attachments[0].text;
           const channelMention = text.match(/<!(.*?)>/g);
           const userMention = text.match(/<@(.*?)>/g);
-          if(!channelMention && userMention) {
-            const data = await util.promisify(controller.storage.channels.get) (msg.channel);
-            data[key].all_user = userMention.reduce((res, user) => [...res, user.substr(2, user.length - 3)], []); // <@U*********> -> U*********
-            await util.promisify(controller.storage.channels.save) (data);
-          }
-        })().catch((err) => {
-          console.error(err);
-          if(err === 'channel_not_found') {
-            bot.replyInteractive(msg, { text : userMessage.error.bot_not_joined });
+          data[key] = { read_user : [], all_user : [] };
+          if(!channelMention && userMention) { // if user mention only
+            data[key].all_user = userMention.reduce((res, user) => [...res, user.substr(2, user.length - 3)], []); // <@U.*?> -> U.*?
           }
           else {
-            bot.replyInteractive(msg, { text : userMessage.error.default });
+            data[key].all_user = await getChannelUsers(msg.channel);
           }
-        });
-      }
+        }
+
+        if(data[msg.text].temporary) { delete data[msg.text]; }
+        await util.promisify(controller.storage.channels.save) (data);
+
+      })().catch((err) => {
+        console.error(new Error(err));
+        if(err === 'channel_not_found') {
+          bot.replyInteractive(msg, { text : userMessage.error.bot_not_joined });
+        }
+        else {
+          bot.replyInteractive(msg, { text : userMessage.error.default });
+        }
+      });
     }
     else if(msg.callback_id === 'slack-kidoku') {
       (async() => {
@@ -94,7 +99,7 @@ module.exports = (controller, botUser) => {
           bot.replyInteractive(msg, { text : text || userMessage.everyone_read, response_type : 'ephemeral', replace_original : false });
         }
       })().catch((err) => {
-        console.error(err);
+        console.error(new Error(err));
         bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
       });
     }
@@ -113,37 +118,64 @@ module.exports = (controller, botUser) => {
         author_name     : info.user.name,
         author_icon     : info.user.profile.image_24,
         actions         : [
-          { name : 'kidoku', text : userMessage.label.kidoku, type : 'button', style : 'primary', value : option.value || '' },
-          { name : 'show-unread', text : userMessage.label.show_unread, type : 'button', value : option.value || '' }
+          {
+            name  : 'kidoku',
+            style : 'primary',
+            text  : userMessage.label.kidoku,
+            type  : 'button',
+            value : option.value || ''
+          }, {
+            name  : 'show-unread',
+            text  : userMessage.label.show_unread,
+            type  : 'button',
+            value : option.value || ''
+          }
         ]
       };
     })().catch((err) => { throw new Error(err); });
   };
 
-  const kidokuConfirm = (text) => {
+  const kidokuConfirm = (key) => {
     return {
       fallback        : 'Confirmation of read confirmation button.',
       callback_id     : 'slack-kidoku-confirm',
       attachment_type : 'default',
       title           : userMessage.create_confirm,
       actions         : [
-        { name : 'ok', text : userMessage.label.ok, type : 'button', value : text, style : 'primary' },
-        { name : 'cancel', text : userMessage.label.cancel, type : 'button', style : 'danger' }
+        {
+          name  : 'ok',
+          style : 'primary',
+          text  : userMessage.label.ok,
+          type  : 'button',
+          value : key
+        }, {
+          name  : 'cancel',
+          style : 'danger',
+          text  : userMessage.label.cancel,
+          type  : 'button',
+          value : key
+        }
       ]
     };
   };
 
-  function getChannelUsers(channel) {
+  const getChannelDataFromStorage = async(channel) => {
+    let data;
+    try {
+      data = await util.promisify(controller.storage.channels.get) (channel);
+    }
+    catch(err) {
+      if(err.message !== 'could not load data') { throw new Error(err); }
+    }
+    data =  data || { id : channel }; // if channel data not exist, create it
+    return data;
+  };
+
+  const getChannelUsers = (channel) => {
     return (async() => {
-      let members = [];
-      if(channel[0] === 'C') { // channels
-        const channelsInfo = await util.promisify(botUser.api.channels.info)({ channel : channel });
-        members = channelsInfo.channel.members;
-      }
-      else if(channel[0] === 'G') { // groups or mpims
-        const groupsInfo = await util.promisify(botUser.api.groups.info)({ channel : channel });
-        members = groupsInfo.group.members;
-      }
+      const apiChannelsInfo = (channel[0] === 'C') ? botUser.api.channels.info : botUser.api.groups.info; // channel or group
+      const channelsInfo = await util.promisify(apiChannelsInfo) ({ channel : channel });
+      const members = (channel[0] === 'C') ? channelsInfo.channel.members : channelsInfo.group.members;
       // exclude bot accounts
       const usersList = await util.promisify(botUser.api.users.list) ({});
       for(const member of usersList.members) {
@@ -152,5 +184,5 @@ module.exports = (controller, botUser) => {
       }
       return members;
     })().catch((err) => { throw new Error(err); });
-  }
+  };
 };
