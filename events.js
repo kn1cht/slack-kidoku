@@ -22,9 +22,10 @@ module.exports = (controller, botUser) => {
         data[key] = { text : msg.text, temporary : true }; // save message text
         await util.promisify(controller.storage.channels.save) (data);
 
-        const usersInfo = await util.promisify(botUser.api.users.info) ({ user : msg.user_id });
         const attachments = [
-          new kidokuButton(msg.text, usersInfo, { callback_id : 'preview' }), // set dummy id
+          new kidokuButton(msg.text,
+            await util.promisify(botUser.api.users.info) ({ user : msg.user_id }),
+            { callback_id : 'preview' }), // set dummy callback_id
           new kidokuConfirm(key)
         ];
         bot.replyPrivate(msg, { text : userMessage.preview, attachments });
@@ -44,24 +45,23 @@ module.exports = (controller, botUser) => {
           bot.replyInteractive(msg, { text : userMessage.cancel });
         }
         else if(msg.actions[0].name === 'ok') {
-          const key = Date.now(); // to set unique value
-          const usersInfo = await util.promisify(botUser.api.users.info) ({ user : msg.user });
-          const message = {
-            channel     : msg.channel,
-            attachments : [ new kidokuButton(data[msg.text].text, usersInfo, { value : key }) ],
-            link_names  : true
-          };
+          const attachments = [
+            new kidokuButton(data[msg.text].text, await util.promisify(botUser.api.users.info) ({ user : msg.user }))
+          ];
+          const message = { channel : msg.channel, attachments, link_names : true };
           const result = await util.promisify(botUser.api.chat.postMessage) (message);
           bot.replyInteractive(msg, { delete_original : true });
-          const text = result.message.attachments[0].text;
-          const channelMention = text.match(/<!(.*?)>/g);
-          const userMention = text.match(/<@(.*?)>/g);
-          data[key] = { read_user : [], all_user : [] };
+
+          const tsMicroSec = result.ts * 1e6;
+          const messageUrl = `https://${msg.team.domain}.slack.com/archives/${msg.channel}/p${tsMicroSec}`;
+          data[tsMicroSec] = { read_user : [], all_user : [], message_url : messageUrl };
+          const channelMention = result.message.attachments[0].text.match(/<!(.*?)>/g);
+          const userMention = result.message.attachments[0].text.match(/<@(.*?)>/g);
           if(!channelMention && userMention) { // if user mention only
-            data[key].all_user = userMention.reduce((res, user) => [...res, user.substr(2, user.length - 3)], []); // <@U.*?> -> U.*?
+            data[tsMicroSec].all_user = userMention.reduce((res, user) => [...res, user.substr(2, user.length - 3)], []); // <@U.*?> -> U.*?
           }
           else {
-            data[key].all_user = await getChannelUsers(msg.channel);
+            data[tsMicroSec].all_user = await getChannelUsers(msg.channel);
           }
         }
 
@@ -82,21 +82,22 @@ module.exports = (controller, botUser) => {
     else if(msg.callback_id === 'slack-kidoku') {
       (async() => {
         const data = await util.promisify(controller.storage.channels.get) (msg.channel);
-        const item = data[msg.text];
+        const tsMicroSec = msg.message_ts * 1e6;
+        const item = data[tsMicroSec];
 
         if(msg.actions[0].name === 'kidoku') {
           if(item.read_user.indexOf(msg.user) >= 0) { // if the user already exists in read_user, delete them
             item.read_user = item.read_user.filter((val) => (val !== msg.user));
           }
           else { item.read_user.push(msg.user); } // if not, add them
-          data[msg.text] = item;
+          data[tsMicroSec] = item;
           await util.promisify(controller.storage.channels.save) (data);
 
           const attachments = [
             msg.original_message.attachments[0], // original text and button
             {
               title : `${userMessage.kidoku}(${item.read_user.length})`,
-              text  : item.read_user.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ) // concatenate user mentions
+              text  : userArrayToMention(item.read_user)
             }
           ];
           bot.replyInteractive(msg, { attachments });
@@ -104,9 +105,8 @@ module.exports = (controller, botUser) => {
 
         else if(msg.actions[0].name === 'show-unread') {
           const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
-          const text = unreader.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, ); // concatenate user mentions
           bot.replyInteractive(msg, {
-            text             : text || userMessage.everyone_read,
+            text             : userArrayToMention(unreader) || userMessage.everyone_read,
             attachments      : [ new kidokuUnreader(unreader.length) ],
             response_type    : 'ephemeral',
             replace_original : false
@@ -124,7 +124,7 @@ module.exports = (controller, botUser) => {
     }
   });
 
-  const kidokuButton = function(text, usersInfo, option) {
+  const kidokuButton = function(text, usersInfo, option = {}) {
     this.fallback    = 'Read confirmation button.',
     this.callback_id = option.callback_id || 'slack-kidoku',
     this.color       = '#4bb078',
@@ -138,12 +138,10 @@ module.exports = (controller, botUser) => {
         style : 'primary',
         text  : userMessage.label.kidoku,
         type  : 'button',
-        value : option.value || ''
       }, {
-        name  : 'show-unread',
-        text  : userMessage.label.show_unread,
-        type  : 'button',
-        value : option.value || ''
+        name : 'show-unread',
+        text : userMessage.label.show_unread,
+        type : 'button',
       }
     ];
   };
@@ -181,6 +179,8 @@ module.exports = (controller, botUser) => {
     }];
   };
 
+  const userArrayToMention = (users) => users.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, );
+
   const getChannelDataFromStorage = async(channel) => {
     let data;
     try {
@@ -208,3 +208,4 @@ module.exports = (controller, botUser) => {
     })().catch((err) => { throw new Error(err); });
   };
 };
+

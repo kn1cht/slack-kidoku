@@ -14,15 +14,17 @@ const bot = controller.spawn({ type : 'slack' });
 
 // fake api information
 const info = {
-  team_id    : 'T12345678',
-  user_name  : 'fakeuser',
-  user_id    : 'U12345678',
-  user_id_2  : 'U98765432',
-  botuser_id : 'U14285714',
-  channel    : 'C12345678',
-  group      : 'G12345678',
-  im         : 'D12345678',
-  text       : 'test message!'
+  team_id     : 'T12345678',
+  team_domain : 'test-team',
+  user_name   : 'fakeuser',
+  user_id     : 'U12345678',
+  user_id_2   : 'U98765432',
+  botuser_id  : 'U14285714',
+  channel     : 'C12345678',
+  group       : 'G12345678',
+  im          : 'D12345678',
+  text        : 'test message!',
+  ts          : '1234567890.123456'
 };
 
 const sequence = {
@@ -48,6 +50,8 @@ const sequence = {
       isAssertion      : true,
       token            : '',
       channel          : opt.channel || info.channel,
+      team             : { domain: info.team_domain },
+      message_ts       : info.ts,
       user             : opt.user || info.user_id,
       text             : opt.text || '',
       callback_id      : id,
@@ -95,6 +99,7 @@ function botInit() {
   bot.api.setData('chat.postMessage', {
     ok      : true,
     channel : info.channel,
+    ts      : info.ts,
     message : { attachments : [{ text : info.text }] }
   });
 }
@@ -217,31 +222,26 @@ describe('slack-kidoku', function() {
   });
 
   describe('kidoku button', () => {
-    let originalMessage, value;
-
-    before(() => {
-      originalMessage = bot.api.logByKey['chat.postMessage'][0];
-      value = originalMessage.attachments[0].actions[0].value;
-    });
-
+    let originalMessage;
+    before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
     beforeEach(() => botInit());
 
     it('add name of who pushed kidoku button to original message', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
       assert(replyInteractive.attachments[1].text === `<@${info.user_id}>`);
     });
 
     it('concatenate username by comma if several users pushed button', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value, user : info.user_id_2 }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, user : info.user_id_2 }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
       assert(replyInteractive.attachments[1].text === `<@${info.user_id}>, <@${info.user_id_2}>`);
     });
 
     it('delete username if it already exist in members who have pushed button', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
       assert(replyInteractive.attachments[1].text === `<@${info.user_id_2}>`);
@@ -249,24 +249,19 @@ describe('slack-kidoku', function() {
   });
 
   describe('show-unread button', () => {
-    let originalMessage, value;
-
-    before(() => {
-      originalMessage = bot.api.logByKey['chat.postMessage'][0];
-      value = originalMessage.attachments[0].actions[0].value;
-    });
-
+    let originalMessage;
+    before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
     beforeEach(() => botInit());
 
     it('show username of the members in the channel who have not pushed kidoku button yet', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(replyInteractive.text === `<@${info.user_id}>`, 'bot account should not shown as unreader');
     });
 
     it('show special message if all channel members have read message', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage, text : value }) ]);
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'kidoku', { original_message : originalMessage }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(replyInteractive.text === userMessage.everyone_read);
     });
@@ -275,6 +270,7 @@ describe('slack-kidoku', function() {
       bot.api.setData('chat.postMessage', {
         ok      : true,
         channel : info.channel,
+        ts      : info.ts,
         message : {
           attachments : [{ text : '<@U77777777> <@U88888888> something important' }]
         }
@@ -283,8 +279,7 @@ describe('slack-kidoku', function() {
       const key = bot.api.logByKey['replyPrivate'].last().json.attachments[1].actions[0].value;
       await bot.usersInput([ new sequence.button('slack-kidoku-confirm', 'ok', { text : key }) ]);
       originalMessage = bot.api.logByKey['chat.postMessage'].last();
-      value = originalMessage.attachments[0].actions[0].value;
-      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(replyInteractive.text === '<@U77777777>, <@U88888888>');
     });
