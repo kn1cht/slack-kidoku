@@ -202,7 +202,7 @@ module.exports = (controller, botUser) => {
       const usersList = await util.promisify(botUser.api.users.list) ({});
       for(const member of usersList.members) {
         const index = members.indexOf(member.id);
-        if(member.is_bot && ~index) { members.splice(index, index); }
+        if(member.is_bot && ~index) { members.splice(index, 1); }
       }
       return members;
     })().catch((err) => { throw new Error(err); });

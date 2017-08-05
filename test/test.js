@@ -80,7 +80,7 @@ function botInit() {
       channel : {
         id      : info.channel,
         name    : 'general',
-        members : [ info.user_id, info.user_id_2, info.botuser_id ]
+        members : [ info.botuser_id, info.user_id, info.user_id_2 ]
       }
     }
   });
@@ -89,7 +89,7 @@ function botInit() {
     group : {
       id      : info.group,
       name    : 'group',
-      members : [ info.user_id, info.user_id_2, info.botuser_id ]
+      members : [ info.botuser_id, info.user_id, info.user_id_2 ]
     }
   });
   bot.api.setData('chat.postMessage', {
@@ -261,7 +261,7 @@ describe('slack-kidoku', function() {
     it('show username of the members in the channel who have not pushed kidoku button yet', async() => {
       await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage, text : value }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-      assert(replyInteractive.text === `<@${info.user_id}>`);
+      assert(replyInteractive.text === `<@${info.user_id}>`, 'bot account should not shown as unreader');
     });
 
     it('show special message if all channel members have read message', async() => {
