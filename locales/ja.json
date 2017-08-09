@@ -10,6 +10,7 @@
   "everyone_read" : "全員が既読です!",
   "kidoku" : "既読",
   "label" : {
+    "alert" : "未読者にDM通知",
     "cancel" : "キャンセル",
     "close" : "閉じる",
     "kidoku" : "既読",

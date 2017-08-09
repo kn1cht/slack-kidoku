@@ -3,4 +3,5 @@
 node_modules
 .env
 bot_db/*
+test_db/*
 coverage/*

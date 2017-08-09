@@ -10,6 +10,7 @@
   "everyone_read" : "Everyone has read this message!",
   "kidoku" : "Read by ",
   "label" : {
+    "alert" : "Send DM to Unreaders",
     "cancel" : "Cancel",
     "close" : "Close",
     "kidoku" : "Read",

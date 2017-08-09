@@ -120,7 +120,14 @@ module.exports = (controller, botUser) => {
     }
 
     else if(msg.callback_id === 'slack-kidoku-unreader') {
-      bot.replyInteractive(msg, { delete_original : true });
+      console.log(msg);
+      if(msg.actions[0].name === 'alert') {
+        bot.replyInteractive(msg, { text : 'Direct Message sent!' });
+      }
+
+      else if(msg.actions[0].name === 'close') {
+        bot.replyInteractive(msg, { delete_original : true });
+      }
     }
   });
 
@@ -172,11 +179,17 @@ module.exports = (controller, botUser) => {
     this.callback_id = 'slack-kidoku-unreader',
     this.title       = `${userMessage.unread}(${num})`,
     this.ts          = Date.now() / 1000,
-    this.actions     = [{
-      name : 'close',
-      text : userMessage.label.close,
-      type : 'button'
-    }];
+    this.actions     = [
+      {
+        name : 'alert',
+        text : userMessage.label.alert,
+        type : 'button'
+      }, {
+        name : 'close',
+        text : userMessage.label.close,
+        type : 'button'
+      }
+    ];
   };
 
   const userArrayToMention = (users) => users.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, );

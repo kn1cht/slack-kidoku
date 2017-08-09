@@ -5,11 +5,16 @@ const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') 
 
 const assert = require('power-assert');
 const botkitMock = require('botkit-mock');
+const exec = require('child_process').exec;
 const util = require('util');
 Array.prototype.last = function() { return this.slice(-1)[0]; }; // get the last element
 
 const events = require('../events.js');
-const controller = botkitMock({ debug : false, log : false });
+const controller = botkitMock({
+  debug           : false,
+  log             : false,
+  json_file_store : './test_db/'
+});
 const bot = controller.spawn({ type : 'slack' });
 
 // fake api information
@@ -50,7 +55,7 @@ const sequence = {
       isAssertion      : true,
       token            : '',
       channel          : opt.channel || info.channel,
-      team             : { domain: info.team_domain },
+      team             : { domain : info.team_domain },
       message_ts       : info.ts,
       user             : opt.user || info.user_id,
       text             : opt.text || '',
@@ -138,6 +143,7 @@ describe('slack-kidoku', function() {
   });
   after(() => {
     controller.shutdown();
+    exec('rm -rf ./test_db');
   });
 
   describe('/kidoku command', () => {
