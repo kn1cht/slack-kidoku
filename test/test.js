@@ -10,6 +10,7 @@ const util = require('util');
 Array.prototype.last = function() { return this.slice(-1)[0]; }; // get the last element
 
 const events = require('../events.js');
+
 const controller = botkitMock({
   debug           : false,
   log             : false,
@@ -108,33 +109,6 @@ function botInit() {
     message : { attachments : [{ text : info.text }] }
   });
 }
-
-bot.replyPrivate = function(src, resp, cb) {
-  let msg = {};
-  if (typeof(resp) === 'string') {
-    msg.text = resp;
-  } else {
-    msg = resp;
-  }
-  msg.channel = src.channel;
-  if (src.thread_ts) {
-    msg.thread_ts = src.thread_ts;
-  }
-  msg.response_type = 'ephemeral';
-  const requestOptions = {
-    uri    : src.response_url,
-    method : 'POST',
-    json   : msg
-  };
-  bot.api.callAPI('replyPrivate', requestOptions, (err) => {
-    if (err) {
-      console.error('Error sending interactive message response:', err);
-      cb && cb(err);
-    } else {
-      cb && cb();
-    }
-  });
-};
 
 describe('slack-kidoku', function() {
   before(async() => {

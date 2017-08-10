@@ -107,7 +107,7 @@ module.exports = (controller, botUser) => {
           const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
           bot.replyInteractive(msg, {
             text             : userArrayToMention(unreader) || userMessage.everyone_read,
-            attachments      : [ new kidokuUnreader(unreader.length) ],
+            attachments      : [ new kidokuUnreader(unreader.length, tsMicroSec) ],
             response_type    : 'ephemeral',
             replace_original : false
           });
@@ -120,14 +120,36 @@ module.exports = (controller, botUser) => {
     }
 
     else if(msg.callback_id === 'slack-kidoku-unreader') {
-      console.log(msg);
       if(msg.actions[0].name === 'alert') {
-        bot.replyInteractive(msg, { text : 'Direct Message sent!' });
-      }
+        (async() => {
+          const data = await util.promisify(controller.storage.channels.get) (msg.channel);
+          const item = data[msg.text];
+          const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
+          const unreaderObj = unreader.reduce((res, cur) => Object.assign(res, { [ cur ] : cur }), {});
 
-      else if(msg.actions[0].name === 'close') {
-        bot.replyInteractive(msg, { delete_original : true });
+          const imList = await util.promisify(botUser.api.im.list) ({});
+          for(const im of imList.ims) {
+            if(unreaderObj[im.user]) {
+              await util.promisify(bot.say) ({
+                text    : `<@${msg.user}> ${userMessage.remind}\n${item.message_url}`,
+                channel : im.id
+              });
+            }
+          }
+
+          bot.replyInteractive(msg, {
+            text        : 'Direct Message sent!',
+            attachments : [ new kidokuReminded(`<@${msg.user}> ${userMessage.remind}\n${item.message_url}`) ]
+          });
+        })().catch((err) => {
+          console.error(new Error(err));
+          bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
+        });
       }
+    }
+
+    if(msg.actions[0].name === 'close') {
+      bot.replyInteractive(msg, { delete_original : true });
     }
   });
 
@@ -174,22 +196,36 @@ module.exports = (controller, botUser) => {
     ];
   };
 
-  const kidokuUnreader = function(num) {
+  const kidokuUnreader = function(num, value) {
     this.fallback    = 'Unreader\'s information.',
     this.callback_id = 'slack-kidoku-unreader',
     this.title       = `${userMessage.unread}(${num})`,
     this.ts          = Date.now() / 1000,
-    this.actions     = [
-      {
+    this.actions     = [];
+    if(num) {
+      this.actions.push({
         name : 'alert',
         text : userMessage.label.alert,
+        value,
         type : 'button'
-      }, {
-        name : 'close',
-        text : userMessage.label.close,
-        type : 'button'
-      }
-    ];
+      });
+    }
+    this.actions.push({
+      name : 'close',
+      text : userMessage.label.close,
+      type : 'button'
+    });
+  };
+
+  const kidokuReminded = function(text) {
+    this.fallback    = 'Detail of Reminder.',
+    this.callback_id = 'slack-kidoku-reminded',
+    this.text        = text,
+    this.actions     = [{
+      name : 'close',
+      text : userMessage.label.close,
+      type : 'button'
+    }];
   };
 
   const userArrayToMention = (users) => users.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, );
