@@ -1,5 +1,6 @@
 {
   "cancel" : "Canceled :wink:",
+  "confirm" : "Are you sure you want to send reminder to all unreaders?",
   "create_confirm" : "Generating kidoku button. Are you really sure to post read confirm button along with the message?",
   "error" : {
     "bot_not_joined" : "Bot should be part of this channel or DM :persevere: \nPlease `/invite @kidoku` to use `/kidoku` command here.",

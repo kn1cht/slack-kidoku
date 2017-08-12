@@ -1,5 +1,6 @@
 {
   "cancel" : "キャンセルしました :wink:",
+  "confirm" : "未読者全員にリマインドしてもよろしいですか?",
   "create_confirm" : "既読ボタンを作成します。本当に作成してもよろしいですか?",
   "error" : {
     "bot_not_joined" : "非公開チャンネルとグループDMで使用する場合はボットを `/invite` してからご利用ください :persevere:",

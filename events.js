@@ -113,15 +113,7 @@ module.exports = (controller, botUser) => {
           });
         }
 
-      })().catch((err) => {
-        console.error(new Error(err));
-        bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
-      });
-    }
-
-    else if(msg.callback_id === 'slack-kidoku-unreader') {
-      if(msg.actions[0].name === 'alert') {
-        (async() => {
+        else if(msg.actions[0].name === 'alert') {
           const data = await util.promisify(controller.storage.channels.get) (msg.channel);
           const item = data[msg.text];
           const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
@@ -141,11 +133,11 @@ module.exports = (controller, botUser) => {
             text        : 'Direct Message sent!',
             attachments : [ new kidokuReminded(`<@${msg.user}> ${userMessage.remind}\n${item.message_url}`) ]
           });
-        })().catch((err) => {
-          console.error(new Error(err));
-          bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
-        });
-      }
+        }
+      })().catch((err) => {
+        console.error(new Error(err));
+        bot.replyInteractive(msg, { text : userMessage.error.default, response_type : 'ephemeral', replace_original : false });
+      });
     }
 
     if(msg.actions[0].name === 'close') {
@@ -198,16 +190,21 @@ module.exports = (controller, botUser) => {
 
   const kidokuUnreader = function(num, value) {
     this.fallback    = 'Unreader\'s information.',
-    this.callback_id = 'slack-kidoku-unreader',
+    this.callback_id = 'slack-kidoku',
     this.title       = `${userMessage.unread}(${num})`,
     this.ts          = Date.now() / 1000,
     this.actions     = [];
     if(num) {
       this.actions.push({
-        name : 'alert',
-        text : userMessage.label.alert,
+        name    : 'alert',
+        text    : userMessage.label.alert,
         value,
-        type : 'button'
+        type    : 'button',
+        confirm : {
+          text         : userMessage.confirm,
+          ok_text      : userMessage.label.ok,
+          dismiss_text : userMessage.label.cancel
+        }
       });
     }
     this.actions.push({

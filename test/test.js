@@ -108,6 +108,16 @@ function botInit() {
     ts      : info.ts,
     message : { attachments : [{ text : info.text }] }
   });
+  bot.api.setData('im.list', {
+    ok  : true,
+    ims : [
+      {
+        id    : info.im,
+        is_im : true,
+        user  : info.user_id
+      }
+    ]
+  });
 }
 
 describe('slack-kidoku', function() {
@@ -233,7 +243,7 @@ describe('slack-kidoku', function() {
     before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
     beforeEach(() => botInit());
 
-    it('show username of the members in the channel who have not pushed kidoku button yet', async() => {
+    it('show username of unreaders and show remind button', async() => {
       await bot.usersInput([ new sequence.button('slack-kidoku', 'show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(replyInteractive.text === `<@${info.user_id}>`, 'bot account should not shown as unreader');
@@ -265,11 +275,23 @@ describe('slack-kidoku', function() {
     });
   });
 
+  describe('remind button', () => {
+    let originalMessage;
+    before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
+    beforeEach(() => botInit());
+
+    it('send remind messages to unreaders in direct messages', async() => {
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'alert', { text : info.ts * 1e6 }) ]);
+      const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
+      console.log(replyInteractive);
+    });
+  });
+
   describe('close button', () => {
     beforeEach(() => botInit());
 
     it('deletes original message', async() => {
-      await bot.usersInput([ new sequence.button('slack-kidoku-unreader', 'close') ]);
+      await bot.usersInput([ new sequence.button('slack-kidoku', 'close') ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(replyInteractive.delete_original === true, 'original message should be deleted');
     });
