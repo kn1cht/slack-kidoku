@@ -283,7 +283,7 @@ describe('slack-kidoku', function() {
     it('send remind messages to unreaders in direct messages', async() => {
       await bot.usersInput([ new sequence.button('slack-kidoku', 'alert', { text : info.ts * 1e6 }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-      console.log(replyInteractive);
+      assert(replyInteractive.attachments[0].text === `<@${info.user_id}> ${userMessage.remind}\nhttps://test-team.slack.com/archives/${info.channel}/p${info.ts * 1e6}`);
     });
   });
 
