@@ -11,7 +11,7 @@
   "everyone_read" : "Everyone has read this message!",
   "kidoku" : "Read by ",
   "label" : {
-    "alert" : "Send Reminder",
+    "remind" : "Send Reminder",
     "cancel" : "Cancel",
     "close" : "Close",
     "kidoku" : "Read",
@@ -20,6 +20,7 @@
   },
   "preview" : "Preview:",
   "remind" : "has reminded you about",
+  "sent_remind" : "Sent remind message!",
   "success" : "Success!",
   "unread"  : "Unread"
 }
