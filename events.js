@@ -38,19 +38,20 @@ module.exports = (controller, botUser) => {
 
   controller.on('interactive_message_callback', (bot, msg) => {
     if(msg.callback_id !== 'slack-kidoku') { return; }
+
     (async() => {
       const data = await getChannelDataFromStorage(msg.channel);
+      let key;
 
       if(msg.actions[0].name === 'cancel') {
-        if(data[msg.text].temporary) { delete data[msg.text]; }
         bot.replyInteractive(msg, { text : userMessage.cancel });
       }
 
       else if(msg.actions[0].name === 'ok') {
+        key = msg.text;
         const attachments = [
-          new kidokuAttachment.kidoku(data[msg.text].text, await util.promisify(botUser.api.users.info) ({ user : msg.user }))
+          new kidokuAttachment.kidoku(data[key].text, await util.promisify(botUser.api.users.info) ({ user : msg.user }))
         ];
-        if(data[msg.text].temporary) { delete data[msg.text]; }
 
         const message = { channel : msg.channel, attachments, link_names : true };
         const result = await util.promisify(botUser.api.chat.postMessage) (message);
@@ -79,46 +80,43 @@ module.exports = (controller, botUser) => {
       }
 
       else if(msg.actions[0].name === 'kidoku') {
-        const tsMicroSec = msg.message_ts * 1e6;
-        const item = data[tsMicroSec];
-        if(item.read_user.indexOf(msg.user) >= 0) { // if the user already exists in read_user, delete them
-          item.read_user = item.read_user.filter((val) => (val !== msg.user));
+        key = msg.message_ts * 1e6;
+        if(data[key].read_user.indexOf(msg.user) >= 0) { // if the user already exists in read_user, delete them
+          data[key].read_user = data[key].read_user.filter((val) => (val !== msg.user));
         }
-        else { item.read_user.push(msg.user); } // if not, add them
-        data[tsMicroSec] = item;
+        else { data[key].read_user.push(msg.user); } // if not, add them
 
         const attachments = [
           msg.original_message.attachments[0], // original text and button
           {
-            title : `${userMessage.kidoku}(${item.read_user.length})`,
-            text  : userArrayToMention(item.read_user)
+            title : `${userMessage.kidoku}(${data[key].read_user.length})`,
+            text  : userArrayToMention(data[key].read_user)
           }
         ];
         bot.replyInteractive(msg, { attachments });
       }
 
       else if(msg.actions[0].name === 'show-unread') {
-        const tsMicroSec = msg.message_ts * 1e6;
-        const item = data[tsMicroSec];
-        const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
+        key = msg.message_ts * 1e6;
+        const unreader = data[key].all_user.filter((user) => !data[key].read_user.includes(user));
         bot.replyInteractive(msg, {
           text             : userArrayToMention(unreader) || userMessage.everyone_read,
-          attachments      : [ new kidokuAttachment.unreader(unreader.length, tsMicroSec) ],
+          attachments      : [ new kidokuAttachment.unreader(unreader.length, key) ],
           response_type    : 'ephemeral',
           replace_original : false
         });
       }
 
       else if(msg.actions[0].name === 'remind') {
-        const item = data[msg.text];
-        const unreader = item.all_user.filter((user) => !item.read_user.includes(user));
+        key = msg.text;
+        const unreader = data[key].all_user.filter((user) => !data[key].read_user.includes(user));
         const unreaderObj = unreader.reduce((res, cur) => Object.assign(res, { [ cur ] : cur }), {});
 
         const imList = await util.promisify(botUser.api.im.list) ({});
         for(const im of imList.ims) {
           if(unreaderObj[im.user]) {
             await util.promisify(bot.say) ({
-              text    : `<@${msg.user}> ${userMessage.remind}\n${item.message_url}`,
+              text    : `<@${msg.user}> ${userMessage.remind}\n${data[key].message_url}`,
               channel : im.id
             });
           }
@@ -126,7 +124,7 @@ module.exports = (controller, botUser) => {
 
         bot.replyInteractive(msg, {
           text        : userMessage.sent_remind,
-          attachments : [ new kidokuAttachment.reminded(`<@${msg.user}> ${userMessage.remind}\n${item.message_url}`) ]
+          attachments : [ new kidokuAttachment.reminded(`<@${msg.user}> ${userMessage.remind}\n${data[key].message_url}`) ]
         });
       }
 
@@ -134,6 +132,7 @@ module.exports = (controller, botUser) => {
         bot.replyInteractive(msg, { delete_original : true });
       }
 
+      if(data[key] && data[key].temporary) { delete data[key]; }
       await util.promisify(controller.storage.channels.save) (data);
 
     })().catch((err) => {
@@ -220,7 +219,7 @@ module.exports = (controller, botUser) => {
 
   kidokuAttachment.reminded = function(text) {
     this.fallback    = 'Detail of Reminder.',
-    this.callback_id = 'slack-kidoku-reminded',
+    this.callback_id = 'slack-kidoku',
     this.text        = text,
     this.actions     = [{
       name : 'close',
