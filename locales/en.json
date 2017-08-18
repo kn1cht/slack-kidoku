@@ -5,10 +5,10 @@
   "error" : {
     "bot_not_joined" : "Bot should be part of this channel or DM :persevere: \nPlease `/invite @kidoku` to use `/kidoku` command here.",
     "command_in_dm" : ":x: `/kidoku` cannot be used in Direct messages!",
-    "default" : "Sorry, something went wrong.",
-    "no_text" : ":x: Please specify your message!"
+    "default" : "Sorry, something went wrong."
   },
   "everyone_read" : "Everyone has read this message!",
+  "help" : "*Usage*\n`/kidoku your message` : generate read confirm button.",
   "kidoku" : "Read by ",
   "label" : {
     "remind" : "Send Reminder",

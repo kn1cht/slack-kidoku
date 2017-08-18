@@ -140,10 +140,10 @@ describe('slack-kidoku', function() {
       assert(reply.attachments[1].callback_id === 'slack-kidoku');
     });
 
-    it('return error text when text was empty', async() => {
+    it('return help text when text was empty', async() => {
       await bot.usersInput([ new sequence.command({ text : '' }) ]);
       const reply = bot.api.logByKey['replyPrivate'].last().json;
-      assert(reply.text === userMessage.error.no_text);
+      assert(reply.text === userMessage.help);
       assert(!reply.attachments);
     });
 

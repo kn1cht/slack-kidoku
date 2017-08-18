@@ -12,7 +12,7 @@ module.exports = (controller, botUser) => {
       }
 
       else if(!msg.text) {
-        bot.replyPrivate(msg, { text : userMessage.error.no_text });
+        bot.replyPrivate(msg, { text : userMessage.help });
         return;
       }
 
