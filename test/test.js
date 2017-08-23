@@ -20,29 +20,30 @@ const bot = controller.spawn({ type : 'slack' });
 
 // fake api information
 const info = {
-  team_id     : 'T12345678',
-  team_domain : 'test-team',
-  user_name   : 'fakeuser',
-  user_id     : 'U12345678',
-  user_id_2   : 'U98765432',
-  botuser_id  : 'U14285714',
-  channel     : 'C12345678',
-  group       : 'G12345678',
-  im          : 'D12345678',
-  text        : 'test message!',
-  ts          : '1234567890.123456'
+  team         : 'T12345678',
+  team_domain  : 'test-team',
+  user_name    : 'fakeuser',
+  user         : 'U12345678',
+  user_2       : 'U98765432',
+  botuser      : 'UBOTUSERS',
+  inactiveuser : 'UINACTIVE',
+  channel      : 'C12345678',
+  group        : 'G12345678',
+  im           : 'D12345678',
+  text         : 'test message!',
+  ts           : '1234567890.123456'
 };
 
 const sequence = {
   command : function(opt = {}) {
     this.type     = 'slash_command',
-    this.user     = info.user_id,
+    this.user     = info.user,
     this.channel  = opt.channel || info.channel,
     this.messages = [{
       isAssertion  : true,
       token        : '',
       channel_id   : opt.channel || info.channel,
-      user_id      : info.user_id,
+      user_id      : info.user,
       command      : '/kidoku',
       text         : (opt.text !== void 0) ? opt.text : info.text,
       response_url : 'https://hooks.slack.com/commands/foo/bar'
@@ -50,7 +51,7 @@ const sequence = {
   },
   button : function(name, opt = {}) {
     this.type     = 'interactive_message_callback',
-    this.user     = opt.user || info.user_id,
+    this.user     = opt.user || info.user,
     this.channel  = opt.channel || info.channel,
     this.messages = [{
       isAssertion      : true,
@@ -79,9 +80,10 @@ function botInit() {
   bot.api.setData('users.list', {
     ok      : true,
     members : [
-      { id : info.user_id, name : info.user_name, is_bot : false },
-      { id : info.user_id_2, name : info.user_name, is_bot : false },
-      { id : info.botuser_id, name : info.user_name, is_bot : true }
+      { id : info.user, name : info.user_name },
+      { id : info.user_2, name : info.user_name },
+      { id : info.botuser, name : info.user_name, is_bot : true },
+      { id : info.inactiveuser, name : info.user_name, deleted : true }
     ]
   });
   bot.api.setData('channels.info', {
@@ -90,7 +92,7 @@ function botInit() {
       channel : {
         id      : info.channel,
         name    : 'general',
-        members : [ info.botuser_id, info.user_id, info.user_id_2 ]
+        members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
       }
     }
   });
@@ -99,7 +101,7 @@ function botInit() {
     group : {
       id      : info.group,
       name    : 'group',
-      members : [ info.botuser_id, info.user_id, info.user_id_2 ]
+      members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
     }
   });
   bot.api.setData('chat.postMessage', {
@@ -114,7 +116,7 @@ function botInit() {
       {
         id    : info.im,
         is_im : true,
-        user  : info.user_id
+        user  : info.user
       }
     ]
   });
@@ -220,21 +222,21 @@ describe('slack-kidoku', function() {
       await bot.usersInput([ new sequence.button('kidoku', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-      assert(replyInteractive.attachments[1].text === `<@${info.user_id}>`);
+      assert(replyInteractive.attachments[1].text === `<@${info.user}>`);
     });
 
     it('concatenate username by comma if several users pushed button', async() => {
-      await bot.usersInput([ new sequence.button('kidoku', { original_message : originalMessage, user : info.user_id_2 }) ]);
+      await bot.usersInput([ new sequence.button('kidoku', { original_message : originalMessage, user : info.user_2 }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-      assert(replyInteractive.attachments[1].text === `<@${info.user_id}>, <@${info.user_id_2}>`);
+      assert(replyInteractive.attachments[1].text === `<@${info.user}>, <@${info.user_2}>`);
     });
 
     it('delete username if it already exist in members who have pushed button', async() => {
       await bot.usersInput([ new sequence.button('kidoku', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
       assert(JSON.stringify(replyInteractive.attachments[0]) === JSON.stringify(originalMessage.attachments[0]), 'buttons should remain same as previous');
-      assert(replyInteractive.attachments[1].text === `<@${info.user_id_2}>`);
+      assert(replyInteractive.attachments[1].text === `<@${info.user_2}>`);
     });
   });
 
@@ -246,7 +248,7 @@ describe('slack-kidoku', function() {
     it('show username of unreaders and show remind button', async() => {
       await bot.usersInput([ new sequence.button('show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-      assert(replyInteractive.text === `<@${info.user_id}>`, 'bot account should not shown as unreader');
+      assert(replyInteractive.text === `<@${info.user}>`, 'bot or deleted account should not shown as unreader');
     });
 
     it('show special message if all channel members have read message', async() => {
@@ -262,7 +264,7 @@ describe('slack-kidoku', function() {
         channel : info.channel,
         ts      : info.ts,
         message : {
-          attachments : [{ text : `<@${info.user_id}> <@${info.user_id_2}> something important` }]
+          attachments : [{ text : `<@${info.user}> <@${info.user_2}> something important` }]
         }
       });
       await bot.usersInput([ new sequence.command() ]);
@@ -271,7 +273,7 @@ describe('slack-kidoku', function() {
       originalMessage = bot.api.logByKey['chat.postMessage'].last();
       await bot.usersInput([ new sequence.button('show-unread', { original_message : originalMessage }) ]);
       const replyInteractive = bot.api.logByKey['replyInteractive'].last().json;
-      assert(replyInteractive.text === `<@${info.user_id}>, <@${info.user_id_2}>`);
+      assert(replyInteractive.text === `<@${info.user}>, <@${info.user_2}>`);
     });
   });
 
@@ -285,7 +287,7 @@ describe('slack-kidoku', function() {
       const message = bot.answers.last();
       assert(message.channel === info.im);
       assert(message.text ===
-        `<@${info.user_id}> ${userMessage.remind}\nhttps://test-team.slack.com/archives/${info.channel}/p${info.ts * 1e6}`);
+        `<@${info.user}> ${userMessage.remind}\nhttps://test-team.slack.com/archives/${info.channel}/p${info.ts * 1e6}`);
     });
   });
 

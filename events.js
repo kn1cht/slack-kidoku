@@ -73,7 +73,7 @@ module.exports = (controller, botUser) => {
           const usersList = await util.promisify(botUser.api.users.list) ({});
           for(const member of usersList.members) {
             const index = members.indexOf(member.id);
-            if(member.is_bot && ~index) { members.splice(index, 1); }
+            if(~index && (member.is_bot || member.deleted)) { members.splice(index, 1); }
           }
           data[tsMicroSec].all_user = members;
         }
