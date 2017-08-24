@@ -109,8 +109,9 @@ module.exports = (controller, botUser) => {
 
       else if(msg.actions[0].name === 'remind') {
         key = msg.text;
-        const unreader = data[key].all_user.filter((user) => !data[key].read_user.includes(user));
-        const unreaderObj = unreader.reduce((res, cur) => Object.assign(res, { [ cur ] : cur }), {});
+        const unreaderObj = data[key].all_user
+          .filter((user) => !data[key].read_user.includes(user))
+          .reduce((res, cur) => Object.assign(res, { [ cur ] : cur }), {});
 
         const imList = await util.promisify(botUser.api.im.list) ({});
         for(const im of imList.ims) {
