@@ -232,14 +232,10 @@ module.exports = (controller, botUser) => {
   const userArrayToMention = (users) => users.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, );
 
   const getChannelDataFromStorage = async(channel) => {
-    let data;
-    try {
-      data = await util.promisify(controller.storage.channels.get) (channel);
-    }
-    catch(err) {
-      if(err.message !== 'could not load data') { throw new Error(err); }
-    }
-    data =  data || { id : channel }; // if channel data not exist, create it
+    const data = await util.promisify(controller.storage.channels.get) (channel)
+      .catch((err) => {
+        if(err.message !== 'could not load data') { throw new Error(err); }
+    }) || { id : channel }; // if channel data not exist, create it
     return data;
   };
 };

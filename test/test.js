@@ -8,10 +8,113 @@ const exec = require('child_process').exec;
 const util = require('util');
 Array.prototype.last = function() { return this.slice(-1)[0]; }; // get the last element
 
+// fake api information
+const info = {
+  team         : 'T12345678',
+  team_domain  : 'test-team',
+  user_name    : 'fakeuser',
+  user         : 'U12345678',
+  user_2       : 'U98765432',
+  botuser      : 'UBOTUSERS',
+  inactiveuser : 'UINACTIVE',
+  channel      : 'C12345678',
+  group        : 'G12345678',
+  im           : 'D12345678',
+  text         : 'test message!',
+  ts           : '1234567890.123456'
+};
+
+const sequence = {
+  command : function(opt = {}) {
+    this.type     = 'slash_command',
+    this.user     = info.user,
+    this.channel  = opt.channel || info.channel,
+    this.messages = [{
+      isAssertion  : true,
+      token        : '',
+      channel_id   : opt.channel || info.channel,
+      user_id      : info.user,
+      command      : '/kidoku',
+      text         : (opt.text !== void 0) ? opt.text : info.text,
+      response_url : 'https://hooks.slack.com/commands/foo/bar'
+    }];
+  },
+  button : function(name, opt = {}) {
+    this.type     = 'interactive_message_callback',
+    this.user     = opt.user || info.user,
+    this.channel  = opt.channel || info.channel,
+    this.messages = [{
+      isAssertion      : true,
+      token            : '',
+      channel          : opt.channel || info.channel,
+      team             : { domain : info.team_domain },
+      message_ts       : info.ts,
+      user             : opt.user || info.user_id,
+      text             : opt.text || '',
+      callback_id      : 'slack-kidoku',
+      actions          : [{ name, type : 'button', value : opt.text || '' }],
+      original_message : opt.original_message || {},
+      response_url     : 'https://hooks.slack.com/commands/foo/bar'
+    }];
+  }
+};
+
+function botInit(bot) {
+  bot.api.setData('users.info', {
+    ok   : true,
+    user : {
+      name    : info.user_name,
+      profile : { email : 'tests@gmail.com', image_24 : 'https://...' }
+    }
+  });
+  bot.api.setData('users.list', {
+    ok      : true,
+    members : [
+      { id : info.user, name : info.user_name },
+      { id : info.user_2, name : info.user_name },
+      { id : info.botuser, name : info.user_name, is_bot : true },
+      { id : info.inactiveuser, name : info.user_name, deleted : true }
+    ]
+  });
+  bot.api.setData('channels.info', {
+    C12345678 : {
+      ok      : true,
+      channel : {
+        id      : info.channel,
+        name    : 'general',
+        members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
+      }
+    }
+  });
+  bot.api.setData('groups.info', {
+    ok    : true,
+    group : {
+      id      : info.group,
+      name    : 'group',
+      members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
+    }
+  });
+  bot.api.setData('chat.postMessage', {
+    ok      : true,
+    channel : info.channel,
+    ts      : info.ts,
+    message : { attachments : [{ text : info.text }] }
+  });
+  bot.api.setData('im.list', {
+    ok  : true,
+    ims : [
+      {
+        id    : info.im,
+        is_im : true,
+        user  : info.user
+      }
+    ]
+  });
+}
+
 for(const locale of ['en', 'ja']) {
   process.env.lang == locale;
   const userMessage = (process.env.lang === 'en') ? require('../locales/en.json') : require('../locales/ja.json');
-  const events = require('../events.js');
 
   const controller = botkitMock({
     debug           : false,
@@ -20,114 +123,10 @@ for(const locale of ['en', 'ja']) {
   });
   const bot = controller.spawn({ type : 'slack' });
 
-  // fake api information
-  const info = {
-    team         : 'T12345678',
-    team_domain  : 'test-team',
-    user_name    : 'fakeuser',
-    user         : 'U12345678',
-    user_2       : 'U98765432',
-    botuser      : 'UBOTUSERS',
-    inactiveuser : 'UINACTIVE',
-    channel      : 'C12345678',
-    group        : 'G12345678',
-    im           : 'D12345678',
-    text         : 'test message!',
-    ts           : '1234567890.123456'
-  };
-
-  const sequence = {
-    command : function(opt = {}) {
-      this.type     = 'slash_command',
-      this.user     = info.user,
-      this.channel  = opt.channel || info.channel,
-      this.messages = [{
-        isAssertion  : true,
-        token        : '',
-        channel_id   : opt.channel || info.channel,
-        user_id      : info.user,
-        command      : '/kidoku',
-        text         : (opt.text !== void 0) ? opt.text : info.text,
-        response_url : 'https://hooks.slack.com/commands/foo/bar'
-      }];
-    },
-    button : function(name, opt = {}) {
-      this.type     = 'interactive_message_callback',
-      this.user     = opt.user || info.user,
-      this.channel  = opt.channel || info.channel,
-      this.messages = [{
-        isAssertion      : true,
-        token            : '',
-        channel          : opt.channel || info.channel,
-        team             : { domain : info.team_domain },
-        message_ts       : info.ts,
-        user             : opt.user || info.user_id,
-        text             : opt.text || '',
-        callback_id      : 'slack-kidoku',
-        actions          : [{ name, type : 'button', value : opt.text || '' }],
-        original_message : opt.original_message || {},
-        response_url     : 'https://hooks.slack.com/commands/foo/bar'
-      }];
-    }
-  };
-
-  function botInit() {
-    bot.api.setData('users.info', {
-      ok   : true,
-      user : {
-        name    : info.user_name,
-        profile : { email : 'tests@gmail.com', image_24 : 'https://...' }
-      }
-    });
-    bot.api.setData('users.list', {
-      ok      : true,
-      members : [
-        { id : info.user, name : info.user_name },
-        { id : info.user_2, name : info.user_name },
-        { id : info.botuser, name : info.user_name, is_bot : true },
-        { id : info.inactiveuser, name : info.user_name, deleted : true }
-      ]
-    });
-    bot.api.setData('channels.info', {
-      C12345678 : {
-        ok      : true,
-        channel : {
-          id      : info.channel,
-          name    : 'general',
-          members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
-        }
-      }
-    });
-    bot.api.setData('groups.info', {
-      ok    : true,
-      group : {
-        id      : info.group,
-        name    : 'group',
-        members : [ info.botuser, info.user, info.user_2, info.inactiveuser ]
-      }
-    });
-    bot.api.setData('chat.postMessage', {
-      ok      : true,
-      channel : info.channel,
-      ts      : info.ts,
-      message : { attachments : [{ text : info.text }] }
-    });
-    bot.api.setData('im.list', {
-      ok  : true,
-      ims : [
-        {
-          id    : info.im,
-          is_im : true,
-          user  : info.user
-        }
-      ]
-    });
-  }
-
   describe(`slack-kidoku(lang: ${locale})`, function() {
     before(async() => {
       await util.promisify(controller.storage.channels.save) ({ id : 'foo' });// avoid storage error
-      events(controller, bot);
+      require('../events.js') (controller, bot);
     });
     after(() => {
       controller.shutdown();
@@ -135,7 +134,7 @@ for(const locale of ['en', 'ja']) {
     });
 
     describe('/kidoku command', () => {
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('return confirm message', async() => {
         await bot.usersInput([ new sequence.command() ]);
@@ -160,7 +159,7 @@ for(const locale of ['en', 'ja']) {
     });
 
     describe('confirm message buttons', () => {
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('post kidoku button message to channel if ok button is pushed', async() => {
         const key = bot.api.logByKey['replyPrivate'][0].json.attachments[1].actions[0].value;
@@ -218,7 +217,7 @@ for(const locale of ['en', 'ja']) {
     describe('kidoku button', () => {
       let originalMessage;
       before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('add name of who pushed kidoku button to original message', async() => {
         await bot.usersInput([ new sequence.button('kidoku', { original_message : originalMessage }) ]);
@@ -245,7 +244,7 @@ for(const locale of ['en', 'ja']) {
     describe('show-unread button', () => {
       let originalMessage;
       before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('show username of unreaders and show remind button', async() => {
         await bot.usersInput([ new sequence.button('show-unread', { original_message : originalMessage }) ]);
@@ -282,7 +281,7 @@ for(const locale of ['en', 'ja']) {
     describe('remind button', () => {
       let originalMessage;
       before(() => { originalMessage = bot.api.logByKey['chat.postMessage'][0]; });
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('send remind messages to unreaders in direct messages', async() => {
         await bot.usersInput([ new sequence.button('remind', { text : info.ts * 1e6 }) ]);
@@ -294,7 +293,7 @@ for(const locale of ['en', 'ja']) {
     });
 
     describe('close button', () => {
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('deletes original message', async() => {
         await bot.usersInput([ new sequence.button('close') ]);
@@ -304,7 +303,7 @@ for(const locale of ['en', 'ja']) {
     });
 
     describe('with API error', () => {
-      beforeEach(() => botInit());
+      beforeEach(() => botInit(bot));
 
       it('send default error message (with users.info error)', async() => {
         bot.api.setData('users.info', {
