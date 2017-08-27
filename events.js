@@ -231,12 +231,11 @@ module.exports = (controller, botUser) => {
 
   const userArrayToMention = (users) => users.reduce((pre, user) => `${pre}, <@${user}>`, '').slice(2, );
 
-  const getChannelDataFromStorage = async(channel) => {
-    const data = await util.promisify(controller.storage.channels.get) (channel)
+  const getChannelDataFromStorage = async(channel) => (
+    await util.promisify(controller.storage.channels.get) (channel)
       .catch((err) => {
         if(err.message !== 'could not load data') { throw new Error(err); }
-    }) || { id : channel }; // if channel data not exist, create it
-    return data;
-  };
+      }) || { id : channel } // if channel data not exist, create it
+  );
 };
 
