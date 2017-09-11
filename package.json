@@ -22,7 +22,7 @@
     "node": "v8.1.X"
   },
   "dependencies": {
-    "botkit": "^0.5.5",
+    "botkit": "^0.6.0",
     "dotenv": "^4.0.0"
   },
   "devDependencies": {
