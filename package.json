@@ -19,7 +19,7 @@
   "author": "kn1cht",
   "license": "MIT",
   "engines": {
-    "node": "v8.1.X"
+    "node": "10"
   },
   "dependencies": {
     "botkit": "^0.6.0",
