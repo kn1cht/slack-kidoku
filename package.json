@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "botkit": "^0.6.0",
-    "dotenv": "^5.0.0"
+    "dotenv": "^6.0.0"
   },
   "devDependencies": {
     "botkit-mock": "github:gratifyguy/botkit-mock",
